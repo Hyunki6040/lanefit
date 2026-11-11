@@ -1,0 +1,28 @@
+.env
+.env.*
+!.env.example
+.remember/
+.tybre/
+graft/
+.ignore
+data/raw/
+build/
+.gradle/
+local.properties
+*.jks
+*.keystore
+keystore.properties
+*.apk
+!apk/*.apk
+.DS_Store
+# internal: real name, strategy notes, signed forms (contest rule: no real names in repo)
+docs/lanefit-proposal.md
+docs/PLAN.md
+docs/forms/
+private/
+docs/research/contest-and-video.md
+# third-party reference clones, never committed
+refs/
+.kotlin/
+# third-party licence text, kept locally for review only
+docs/research/pleos-emulator-license.txt

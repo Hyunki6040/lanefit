@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Read-only. No CONTROL_CAR_* permission: LaneFit never commands the car. -->
+    <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />  <!-- turn signal -->
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />   <!-- steering angle, brake pedal, driving mode -->
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />   <!-- passenger seat occupancy -->
+    <uses-permission android:name="pleos.car.permission.TTS_SERVICE" /> <!-- one-sentence speech -->
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />      <!-- vehicle speed (runtime) -->
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" /> <!-- gear: P unlocks the settings screen -->
+
+    <application
+        android:icon="@drawable/ic_launcher"
+        android:label="LaneFit"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        <uses-library android:name="android.car" android:required="false" />
+        <!-- Day/night and window resizes happen while driving: Compose redraws, the drive session must survive. -->
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density"
+            android:exported="true">
+            <meta-data android:name="distractionOptimized" android:value="true" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
