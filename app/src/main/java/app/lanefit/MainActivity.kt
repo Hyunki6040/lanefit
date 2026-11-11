@@ -4,6 +4,7 @@ import ai.pleos.playground.tts.TextToSpeech
 import ai.pleos.playground.tts.constant.ErrorType
 import ai.pleos.playground.tts.constant.Mode
 import ai.pleos.playground.tts.listener.OnInitializeListener
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
@@ -54,8 +55,11 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (true) {
-                    if (source != Source.SIMULATION) {
-                        val sample = signals.sample(SystemClock.elapsedRealtime())
+                    val sample = signals.sample(SystemClock.elapsedRealtime())
+                    if (source == Source.SIMULATION) {
+                        // The simulation ends on its own parked (touch) screen: leave it the moment the real car is not parked.
+                        if (signals.inPark == false || (sample?.speedKmh ?: 0.0) >= 1.0) use(Source.CAR)
+                    } else {
                         if (sample != null) {
                             session.onSample(sample)
                             ui = session.state
@@ -80,7 +84,9 @@ class MainActivity : ComponentActivity() {
                 onSource = ::use,
             )
         }
-        if (intent.getBooleanExtra(EXTRA_DEMO, false)) use(Source.SIMULATION)
+        // The activity is exported: any app can send this extra, so only debuggable builds honour it.
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (debuggable && intent.getBooleanExtra(EXTRA_DEMO, false)) use(Source.SIMULATION)
     }
 
     private fun change(block: DriveSession.() -> Unit) {
