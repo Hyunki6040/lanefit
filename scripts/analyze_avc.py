@@ -5,6 +5,7 @@
 
 실행: uv run -q --with matplotlib python -I scripts/analyze_avc.py
 한계: 한 지점의 지점 속도(15분 집계) 하루치다. 구간 통행시간이 아니며 실시간도 아니다.
+용도: 한 지점 하루 예시 그림. 앱의 차로 속도 프로필과 4지점 15일 백테스트는 scripts/lane_profile.py 담당.
 """
 import json
 import sys

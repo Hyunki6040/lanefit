@@ -61,7 +61,7 @@ def hero():
     d.text((80, 110), "LaneFit · 레인핏", font=font("SemiBold", 30), fill=SUB)
     d.multiline_text((80, 170), "깜빡이를 켜면,\n옮길 만한지\n한 문장으로.", font=font("Bold", 76), fill=TEXT, spacing=14)
     d.text((80, 470), "Pleos Connect 읽기 전용 차선 비서", font=font("Medium", 32), fill=TEXT)
-    d.text((80, 516), "현대자동차그룹 차량용 앱 개발 공모전 · 안전 운전", font=font("Regular", 26), fill=SUB)
+    d.text((80, 516), "Android Automotive · 안전 운전", font=font("Regular", 26), fill=SUB)
     x = pill(d, (80, 590), "기본 답은 Stay", GREEN)
     pill(d, (x + 16, 590), "차량 제어 없음", TEXT)
     paste_round(im, SCREENS / "sim-stay.png", (720, 90, 1540, 680))
@@ -140,7 +140,7 @@ def modes():
             fill = color if k < cap else LINE
             d.rounded_rectangle((x + 186 + k * 52, 350, x + 226 + k * 52, 390), 10, fill=fill)
         d.text((x + 186, 402), f"10km당 최대 {cap}회", font=font("Medium", 22), fill=TEXT)
-    d.text((80, 720), "모든 모드 공통: 변경 후 60초는 다시 안내하지 않음 · 확신도 0.6 미만이면 침묵 · 수치는 백테스트로 조정할 초기 설계값",
+    d.text((80, 720), "모든 모드 공통: 변경 후 60초는 다시 안내하지 않음 · 확신도 0.6 미만이면 침묵",
            font=font("Regular", 21), fill=SUB)
     im.save(OUT / "modes.png", optimize=True)
 
@@ -176,7 +176,7 @@ def risk():
         card(im, (x, yy, x + 456, yy + 116), 24)
         d.text((x + 30, yy + 28), title, font=font("Bold", 28), fill=TEXT)
         d.text((x + 30, yy + 72), sub, font=font("Regular", 22), fill=SUB)
-    d.text((80, 826), "30점 미만 낮음 · 60점 미만 보통 · 그 이상 높음. 가중치는 실주행 자료로 맞출 검증 전 휴리스틱입니다.",
+    d.text((80, 826), "30점 미만 낮음 · 60점 미만 보통 · 그 이상 높음. 점수는 참고용 추정치입니다.",
            font=font("Regular", 21), fill=SUB)
     im.save(OUT / "risk.png", optimize=True)
 

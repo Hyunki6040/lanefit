@@ -1,6 +1,8 @@
 # Pleos Connect SDK integration facts for LaneFit
 
-Researched 2026-11-11. Read-only. Nothing here was compiled or run on the emulator by this research; "ran on emulator" always means another team's repo says so.
+Sources read 2026-11-11. Each fact carries a tag naming its source; "ran on emulator" always means another team's repo says so.
+
+LaneFit 0.2.0 uses five of these SDKs: Vehicle 2.3.2, TextToSpeech 3.3.1 (`pleos.car.permission.TTS_SERVICE`), NaviHelper 3.0.5 (`pleos.car.permission.NAVI_ROUTE`; it reads the next manoeuvre and never requests a route), FusedLocation 1.1.3 (`pleos.car.permission.FUSED_LOCATION`, requested at runtime) and SpeechToText 3.3.1 (`pleos.car.permission.STT_SERVICE` + `android.permission.RECORD_AUDIO`, the latter requested at runtime). The adapters are `app/src/main/java/app/lanefit/CarFeeds.kt` (NaviHelper, FusedLocation, SpeechToText), `VehicleSignals.kt` (Vehicle) and `MainActivity.kt` (TextToSpeech).
 
 ## Sources and tag legend
 
@@ -15,8 +17,7 @@ Every fact carries `[confirmed: <source>]` or `[inferred]`. Short source names:
 | `jar:<Artifact>` | `javap` / manifest of the AAR downloaded from the Pleos Nexus (bytecode is the ground truth for signatures) |
 | `nexus` | anonymous `curl` against `nexus-playground.pleos.ai` on 2026-11-11 |
 | `docs:<path>` | `https://document.pleos.ai/en/docs/<path>` |
-| `mulmizero`, `ChabakON`, `routinegongbang`, `yeopjari26` | contestant repos `hwiery/mulmizero` @ e7e13ca, `yg440041-hue/ChabakON` @ d4ab4a5, `LcokHcak/routinegongbang` @ 782ad15, `yeopjari-app/yeopjari26` @ 8fc06b4 |
-| `local` | checked on this Mac |
+| `mulmizero`, `ChabakON`, `routinegongbang`, `yeopjari26` | team repos `hwiery/mulmizero` @ e7e13ca, `yg440041-hue/ChabakON` @ d4ab4a5, `LcokHcak/routinegongbang` @ 782ad15, `yeopjari-app/yeopjari26` @ 8fc06b4 |
 
 Emulator evidence quality: `mulmizero` (arm64 Mac), `ChabakON`, `routinegongbang` (x86_64) ran on Pleos Connect Emulator v2.1.0. `yeopjari26` Pleos build was **never run** on the emulator (its README says so), so its code proves "compiles", not "works".
 
@@ -37,7 +38,7 @@ dependencyResolutionManagement {
     }
 }
 ```
-[confirmed: sample-vehicle `settings.gradle.kts`; identical line in sample-navi, sample-fused and all four contestant repos; docs:pleos-only/connect-sdk-pleos/Vehicle/project-setup]
+[confirmed: sample-vehicle `settings.gradle.kts`; identical line in sample-navi, sample-fused and all four team repos; docs:pleos-only/connect-sdk-pleos/Vehicle/project-setup]
 
 - **No credentials or token.** [confirmed: sample-navi `README.md` — "No repository token or `credentials.gradle` file is required."; nexus — `maven-metadata.xml`, `.pom`, `.aar` all HTTP 200 without auth]
 
@@ -53,7 +54,7 @@ dependencyResolutionManagement {
 
 **Disagreement — Vehicle version.**
 - `2.3.1`: docs:pleos-only/getting-started says `implementation("ai.pleos.playground:Vehicle:2.3.1")`; sample-vehicle `gradle/libs.versions.toml` has `vehicleSdk = "2.3.1"`.
-- `2.3.2`: sample-vehicle `README.md`, docs:…/Vehicle/project-setup, all four contestant repos.
+- `2.3.2`: sample-vehicle `README.md`, docs:…/Vehicle/project-setup, all four team repos.
 - Resolution: `Vehicle-2.3.1.pom` returns **HTTP 404**, `Vehicle-2.3.2.pom` returns 200. Use **2.3.2**. [confirmed: nexus] The official sample as checked in would not resolve its own dependency. [inferred]
 
 Transitive dependencies (resolved automatically, all on the same Nexus or Maven Central): `vehicle-aidl:1.1.1`, `vehicle-data:1.1.11` (which lists `hilt-android:2.51.1`), `kotlin-reflect:1.9.25`, `gson:2.10.1`, `core-ktx:1.8.0`, `kotlinx-coroutines-android:1.6.3`; NaviHelper pulls `navi-data:3.0.4` (needs `kotlinx-serialization-json:1.6.3`), `navi-aidl:3.0.1`; STT/TTS pull `ai.pleos.playground.security:universal-access:0.6.0`. [confirmed: nexus POMs and `Vehicle-2.3.2.module`]
@@ -77,7 +78,7 @@ Transitive dependencies (resolved automatically, all on the same Nexus or Maven 
 - For the AAOS Car API (speed, gear): `android { useLibrary("android.car") }`. [confirmed: routinegongbang and yeopjari26 `app/build.gradle.kts`]
 - SDK proguard rules ship inside the AAR (consumer rules); nothing to add. [confirmed: jar:Vehicle `proguard.txt`]
 
-Recommended for LaneFit: AGP 8.8.2, Kotlin 2.0.0, Gradle 8.10.2, compileSdk 35, minSdk 28, targetSdk 35, JDK 17 — the exact official-sample combination, with the docs' minSdk. [inferred]
+LaneFit 0.2.0 builds with AGP 8.5.2, Kotlin 2.0.20, Gradle 8.8, compileSdk 34, minSdk 29, targetSdk 34, JDK 17. [confirmed: this repo `build.gradle.kts`, `app/build.gradle.kts`, `gradle/wrapper/gradle-wrapper.properties`]
 
 ---
 
@@ -135,7 +136,7 @@ Check on the emulator instead of trusting the table: `adb shell dumpsys package 
 
 ## 3. Kotlin API
 
-All signatures below are from the 2.3.2 / 3.0.5 / 3.3.1 bytecode unless tagged otherwise. Callback and listener values are nullable (`Float?`, `Boolean?`, enum`?`) — the contestant code overriding them with nullable parameters compiles. [confirmed: mulmizero `sdk/VehicleBridge.kt`, routinegongbang `pleos/PleosPhase2.kt`]
+All signatures below are from the 2.3.2 / 3.0.5 / 3.3.1 bytecode unless tagged otherwise. Callback and listener values are nullable (`Float?`, `Boolean?`, enum`?`) — the team code overriding them with nullable parameters compiles. [confirmed: mulmizero `sdk/VehicleBridge.kt`, routinegongbang `pleos/PleosPhase2.kt`]
 
 ### 3.0 Common pattern
 
@@ -157,7 +158,7 @@ vehicle.release()             // unregister listeners first
   - official: "`Vehicle.initialize()` must complete before calling a vehicle property API. If the service is unavailable or initialization fails, surface the error and do not continue with property calls." [confirmed: sample-vehicle `README.md` line 172]
   - mulmizero waits a fixed 1500 ms and re-subscribes at 6000 ms if nothing arrived; ChabakON waits 800 ms. [confirmed: mulmizero `sdk/VehicleBridge.kt` lines 87–88; ChabakON `vehicle/PleosGateway.kt` line 70]
   - routinegongbang: "`Vehicle.initialize()` has no callback. The SDK binds with its own retries and queues calls"; it fires one cheap capability call and treats any answer as "connected", with a 20 s timeout (`PING_TIMEOUT_MS = 20_000L`). [confirmed: routinegongbang `pleos/PleosVehicle.kt` lines 25, 155]
-- Capability-callback arity (three contestant variants explained): the SDK has **overloads**. Area-less properties take `(CapabilityConfig) -> Unit`; area properties take `(CapabilityConfig, List<Area>) -> Unit` or `(CapabilityConfig, AreaBounds<T>) -> Unit`; the older one-argument forms such as `checkSeatOccupancyCapabilities((List<SeatArea>) -> Unit, …)` still exist but are `@Deprecated`. [confirmed: jar:Vehicle `api.Seat`, `api.SteeringWheel`, `api.Brake`]
+- Capability-callback arity (three team variants explained): the SDK has **overloads**. Area-less properties take `(CapabilityConfig) -> Unit`; area properties take `(CapabilityConfig, List<Area>) -> Unit` or `(CapabilityConfig, AreaBounds<T>) -> Unit`; the older one-argument forms such as `checkSeatOccupancyCapabilities((List<SeatArea>) -> Unit, …)` still exist but are `@Deprecated`. [confirmed: jar:Vehicle `api.Seat`, `api.SteeringWheel`, `api.Brake`]
 
 ### 3.1 Turn signal
 
@@ -325,7 +326,7 @@ vehicle.getSafety().unregisterTelltales(l)
 
 - `checkTelltalesCapabilities`, `registerTelltales`, `unregisterTelltales` are annotated `PRIVATE_CAR_SAFETY`; `getTelltalesInfo` is annotated `CAR_SAFETY`. [confirmed: jar:Vehicle]
 - The official sample **blocks all four** telltale methods as non-public (`PublicApiPolicy.blockedApis`) and states "Private, hidden, and deprecated APIs are intentionally excluded." [confirmed: sample-vehicle `explorer/PublicApiPolicy.kt`, `README.md`]
-- A developer reports using `PRIVATE_CAR_SAFETY` + `registerTelltales` on the emulator and asked whether a contest or store app may hold it; unanswered. [confirmed: forum #33]
+- A developer reports using `PRIVATE_CAR_SAFETY` + `registerTelltales` on the emulator and asked whether a third-party or store app may hold it; unanswered. [confirmed: forum #33]
 - Treat LKA / LFA / driver-attention telltales as **not available to LaneFit** unless Pleos says otherwise. [inferred]
 
 ### 3.8 NaviHelper
@@ -368,7 +369,7 @@ val listener = object : NaviHelperEventListener {
 
 ### 3.9 TextToSpeech / SpeechToText
 
-Pleos TTS (no contestant repo uses it — all four use Android `android.speech.tts.TextToSpeech`):
+Pleos TTS (no team repo uses it — all four use Android `android.speech.tts.TextToSpeech`):
 
 ```kotlin
 import ai.pleos.playground.tts.TextToSpeech
@@ -402,7 +403,7 @@ tts.removeEventListener(ev); tts.release()
 - `ErrorType`: `AUDIO_ERROR, MIC_ERROR, SERVER_INTERNAL_ERROR, NETWORK_ERROR, INVALID_REQUEST_ERROR, TIMEOUT, UNAUTHENTICATED, PERMISSION_DENIED, ON_DEVICE_ENGINE_ERROR, UNKNOWN, UNAVAILABLE_LANGUAGE, NOT_SUPPORTED_API`. [confirmed: jar:TextToSpeech]
 - **`SERVER` and `HYBRID` need app registration**: `tts.registerApp(clientID, clientSecret, OnServerConnectionListener { onConnected(); onFailed(ErrorType) })`, with the Client ID / Client Secret obtained when you "create My Project in Pleos Playground". `ON_DEVICE` needs no registration. [confirmed: docs …/TextToSpeech/app-registration]
 - The AAR requires the device speech service (`ai.pleos.playground.caas`) at version ≥ 4.1.29 and merges `android.permission.INTERNET`. [confirmed: jar:TextToSpeech `AndroidManifest.xml`]
-- Disagreement on availability: routinegongbang's README calls TTS/STT "아직 열리지 않은 SDK" (not open yet) and mulmizero's says it will add them "Pleos TTS/STT SDK가 공개되면" (once published); the artifacts are publicly downloadable and documented, and ChabakON runs STT on the emulator. [confirmed: routinegongbang `README.md` line 155; mulmizero `README.md` line 160; nexus; ChabakON `README.md` line 90]
+- Disagreement on availability: routinegongbang's README says the TTS/STT SDK is not open and mulmizero's says it will add them "Pleos TTS/STT SDK가 공개되면" (once published); the artifacts are publicly downloadable and documented, and ChabakON runs STT on the emulator. [confirmed: routinegongbang `README.md` line 155; mulmizero `README.md` line 160; nexus; ChabakON `README.md` line 90]
 
 Pleos STT (ran on the emulator in ChabakON):
 
@@ -495,7 +496,6 @@ stt.release()
 
 - The docs list one "URL for Mac", and it is the **arm64-v8a** image. They make no Intel-Mac distinction. [confirmed: docs setup page; nexus XML `<abi>arm64-v8a</abi>`]
 - The x86_64 image ("Intel x86_64 Atom System Image") is published only under the "Windows/Linux" URL; using that URL on an Intel Mac is [inferred].
-- This Mac: Apple M3, arm64, Android Emulator 35.2.10 (arm64 binary) → use the Mac / arm64 URL. [confirmed: local `sysctl`, `emulator/source.properties`]
 
 ### Install and AVD steps (Android Studio)
 
@@ -511,13 +511,6 @@ stt.release()
 - Services on the image: Vehicle Service 2.3.22 (package `ai.pleos.playground.service.vehicle`; SDK 2.3.2 needs ≥ 2.3.13), Navi Service 3.0.4. [confirmed: sample-vehicle `README.md`, `vehicle/RuntimeVersionProvider.kt`; jar:Vehicle AAR manifest; forum #29 comment]
 - CLI-only route (no Android Studio): unpack the zip into `$ANDROID_HOME/system-images/android-34/pleos_car_emulator/arm64-v8a/`; in the AVD `config.ini` set `image.sysdir.1=system-images/android-34/pleos_car_emulator/arm64-v8a/`, `hw.lcd.width=2560`, `hw.lcd.height=1440`, `hw.lcd.density=160`, `hw.ramSize=4096`; run `emulator -avd <name> -no-snapshot`. [confirmed: mulmizero `README.md` line 77] The zip's top-level folder is `crp_avd_out_arm64-v8a/` (contains `system.img`, `vendor.img`, `source.properties`, `devices.xml`, …), so its **contents** go into `arm64-v8a/`. [confirmed: nexus — zip central directory]
 - Install the app: `adb install -r -g <apk>` grants runtime permissions in one go. [confirmed: mulmizero `README.md` line 82]
-
-### This machine [confirmed: local]
-
-- No Android Studio in `/Applications`. SDK exists at `~/Library/Android/sdk` with `cmdline-tools/latest` (`sdkmanager`, `avdmanager`), `platform-tools` (adb 35.0.2), `build-tools` 34.0.0 and 35.0.0, `emulator`.
-- `platforms/` holds only `android-34` → `compileSdk = 35` needs `platforms;android-35` installed first.
-- JDK 17 present (Corretto 17.0.5, an x86_64 build running under Rosetta). No `gradle` on PATH, so a Gradle wrapper must come from Android Studio or a Gradle install.
-- 23 GiB free; the image zip alone is 4.7 GB before unpacking.
 
 ### Virtual Console
 
@@ -542,11 +535,11 @@ stt.release()
   | Steering angle | Yes — Motion [confirmed: docs; mulmizero] |
   | Brake | Yes — Motion [confirmed: docs; mulmizero, ChabakON] |
   | Seat occupancy | Yes — Convenience > Seat Occupancy [confirmed: ChabakON, mulmizero, routinegongbang] |
-  | Turn signal | Not named anywhere; possibly under Convenience "lights" — **Unverified** |
+  | Turn signal | Not named in the docs. `scripts/drive_emulator.py` sets it with `PUT /vehicle/turn-signal?mode=BlinkLeft\|Off` [confirmed: this repo] |
   | Drive mode | Not named in any source — **Unverified** |
-  | Vehicle speed | Not named in the docs; a developer says the console has an "ACCEL" item [confirmed: forum #33] — effect on `PERF_VEHICLE_SPEED` Unverified |
+  | Vehicle speed | Not named in the docs; a developer says the console has an "ACCEL" item [confirmed: forum #33]. `scripts/drive_emulator.py` sets it with `PUT /vehicle/controls?speed=<n>` [confirmed: this repo] |
 - The console applies values only while a browser session is alive ("콘솔은 브라우저 세션이 살아 있을 때만 값을 반영함"); keep the tab open. [confirmed: mulmizero `README.md` line 98]
-- Undocumented REST endpoints used by mulmizero for scripted demos (POST, on the forwarded port): `/browser/session?client=<name>` once per second as heartbeat; `/vehicle/gear?gear=Park|Drive`; `/vehicle/controls?steering=<deg>`; `/vehicle/controls?brake=<n>`; `/vehicle/seat?kind=occupied&area=rear_left|rear_right|passenger&value=true|false`; `/vehicle/hvac?power=true` etc. [confirmed: mulmizero `tools/vc_heartbeat.sh`, `tools/live_demo.sh` — unofficial, may change]
+- Undocumented REST endpoints used by mulmizero for scripted runs (POST, on the forwarded port): `/browser/session?client=<name>` once per second as heartbeat; `/vehicle/gear?gear=Park|Drive`; `/vehicle/controls?steering=<deg>`; `/vehicle/controls?brake=<n>`; `/vehicle/seat?kind=occupied&area=rear_left|rear_right|passenger&value=true|false`; `/vehicle/hvac?power=true` etc. [confirmed: mulmizero `tools/vc_heartbeat.sh`, `tools/live_demo.sh` — unofficial, may change]
 
 ---
 
@@ -577,19 +570,19 @@ stt.release()
 
 Could not be confirmed from any source; do not treat as fact.
 
-1. Whether the Virtual Console can drive **turn signal** and **drive mode**. Neither is named in the docs or any repo. The detailed "Pleos Connect Virtual Console User Guide" the docs refer to was not found (guessed URL returns 404).
-2. Whether `TurnSignalStateListener` and `DrivingModeStateListener` ever fire on the emulator. Turn signal appears only in yeopjari26 (never run on the emulator); driving mode is bound in routinegongbang but no document shows a value changing.
-3. Fallback if the console lacks them: `adb shell cmd car_service inject-vhal-event <propId> <value>` with AOSP `TURN_SIGNAL_STATE` (0x11400408; 0 none, 1 right, 2 left). Standard AAOS tooling [inferred]; not tried by anyone on the Pleos image, and the Pleos Vehicle Service may not read that property.
+1. Whether the Virtual Console can drive **drive mode**. It is not named in the docs or any repo. The detailed "Pleos Connect Virtual Console User Guide" the docs refer to was not found (guessed URL returns 404).
+2. Whether `DrivingModeStateListener` ever fires on the emulator. Driving mode is bound in routinegongbang but no document shows a value changing.
+3. Alternative injection path: `adb shell cmd car_service inject-vhal-event <propId> <value>` with AOSP `TURN_SIGNAL_STATE` (0x11400408; 0 none, 1 right, 2 left). Standard AAOS tooling [inferred]; not tried by anyone on the Pleos image, and the Pleos Vehicle Service may not read that property.
 4. Steering angle sign convention and the emulator's reported bounds.
 5. Whether `PERF_VEHICLE_SPEED` changes on the emulator (console "ACCEL" item), its unit as defined by Pleos, and whether third-party apps get `android.car.permission.CAR_SPEED` on real cars — all asked in forum #33, unanswered.
 6. Protection levels of `android.car.permission.*` on the Pleos image; verify with `adb shell dumpsys package`.
 7. What `pleos.car.permission.CAR_SPEED`, `READ_CAR_STEERING`, `READ_ADAS_STATES` actually gate. No SDK 2.3.2 method references them.
-8. Whether `PRIVATE_CAR_SAFETY` (telltales: LKA, LFA, ELK, DRIVER_ATTENTION) is grantable to a contest or store app.
+8. Whether `PRIVATE_CAR_SAFETY` (telltales: LKA, LFA, ELK, DRIVER_ATTENTION) is grantable to a third-party or store app.
 9. Pleos TextToSpeech on the emulator: whether `ON_DEVICE` mode has a Korean voice, and whether the emulator's speech service meets the 4.1.29 minimum.
 10. Whether the Gleo AI app exists on the emulator and whether it invokes an app whose schema Pleos has not approved.
 11. Seat occupancy polarity on a real vehicle.
 12. The correct image for an Intel Mac.
-13. Exact ordering and meaning of `onRouteStarted` / `onRoutingCompleted` as defined by Pleos (only a contestant's reading was found).
+13. Exact ordering and meaning of `onRouteStarted` / `onRoutingCompleted` as defined by Pleos (only another team's reading was found).
 14. Whether `avdmanager create avd -k "system-images;android-34;pleos_car_emulator;arm64-v8a"` works after a manual unpack. mulmizero's `config.ini` edit is the only documented CLI route.
 15. Names of the lambda parameters (`onComplete`, `onFailed`) for interfaces other than `Door`; the skeleton below passes lambdas positionally to avoid depending on them.
 
@@ -686,8 +679,9 @@ android {
 dependencies {
     implementation("ai.pleos.playground:Vehicle:2.3.2")
     implementation("ai.pleos.playground:NaviHelper:3.0.5")
-    // implementation("ai.pleos.playground:TextToSpeech:3.3.1")
-    // implementation("ai.pleos.playground:SpeechToText:3.3.1")
+    implementation("ai.pleos.playground:FusedLocation:1.1.3")
+    implementation("ai.pleos.playground:TextToSpeech:3.3.1")
+    implementation("ai.pleos.playground:SpeechToText:3.3.1")
 
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.0")
@@ -725,10 +719,13 @@ dependencies {
     <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
     <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
 
-    <!-- Only if Pleos TTS / STT are used -->
-    <!-- <uses-permission android:name="pleos.car.permission.TTS_SERVICE" /> -->
-    <!-- <uses-permission android:name="pleos.car.permission.STT_SERVICE" /> -->
-    <!-- <uses-permission android:name="android.permission.RECORD_AUDIO" /> -->
+    <!-- FusedLocation: requested at runtime -->
+    <uses-permission android:name="pleos.car.permission.FUSED_LOCATION" />
+
+    <!-- Pleos TTS / STT; RECORD_AUDIO is requested at runtime -->
+    <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
+    <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application>
         <uses-library android:name="android.car" android:required="false" />
@@ -880,5 +877,3 @@ val askSpeed = registerForActivityResult(ActivityResultContracts.RequestPermissi
 askSpeed.launch("android.car.permission.CAR_SPEED")
 ```
 [confirmed: same mechanism as sample-fused `MainActivity.kt` for `FUSED_LOCATION`; applying it to `CAR_SPEED` follows routinegongbang `README.md` line 79]
-
-First things to check on the emulator, in order: (1) the Gradle sync resolves `Vehicle:2.3.2`; (2) cold-booted AVD, `adb forward tcp:8088 tcp:8088`, console tab open; (3) Motion > steering and brake produce log lines; (4) Convenience > Seat Occupancy toggles the passenger line; (5) look for a turn-signal and a drive-mode control — if absent, items 1–3 under Unverified are the open risk for the demo.

@@ -21,7 +21,10 @@ sealed interface DemoEvent {
 
 fun DriveSession.apply(e: DemoEvent) = when (e) {
     is DemoEvent.Sample -> onSample(e.sample)
-    is DemoEvent.Anchor -> onAnchor(e.laneCount, e.lane, e.reliability)
+    is DemoEvent.Anchor -> {
+        highway = true // the scripted road is a motorway, entered from a ramp
+        onAnchor(e.laneCount, e.lane, e.reliability)
+    }
     is DemoEvent.LaneSpeeds -> onLaneSpeeds(e.speedsKmh, e.horizonKm)
 }
 

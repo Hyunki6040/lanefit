@@ -2,7 +2,10 @@ package app.lanefit.engine
 
 import kotlin.math.roundToInt
 
-/** Thresholds are the proposal's initial design values; adjust after the backtest. */
+/**
+ * The smallest predicted gain a change is mentioned for, and how many such mentions fit in 10 km.
+ * docs/research/backtest.md shows what each threshold does on 15 days of public lane data.
+ */
 enum class Mode(val thresholdS: Int, val maxChangesPer10Km: Int) {
     CALM(180, 1), FLOW(120, 2), RUSH(60, 3);
 
@@ -32,12 +35,13 @@ data class AdviceInput(
     val estimate: LaneEstimate,
     /** The turn signal the driver just switched on. */
     val signal: Side,
-    /** Predicted speed per lane, index 0 = lane 1. */
-    val laneSpeedsKmh: List<Double>,
+    /** Predicted speed per lane, index 0 = lane 1. null = no usable speed (bus lane): never an answer. */
+    val laneSpeedsKmh: List<Double?>,
     /** Distance the comparison covers: remaining distance on this road, capped by the caller. */
     val horizonKm: Double,
     val mode: Mode,
-    val changesLast10Km: Int,
+    /** "Change" answers already given in the last 10 km. */
+    val changeAdviceLast10Km: Int,
     val sinceLastChangeS: Double?,
     /** The route needs this signal (exit, junction), so it is not a question. */
     val signalIsForRoute: Boolean,
@@ -65,9 +69,8 @@ fun advise(i: AdviceInput): Advice {
     if (gainS < i.mode.thresholdS) return Advice.Stay(gainS, "옮겨도 ${spoken(gainS)} 차이예요, 유지하세요")
 
     val justChanged = i.sinceLastChangeS != null && i.sinceLastChangeS < MIN_DWELL_S
-    if (justChanged || i.changesLast10Km >= i.mode.maxChangesPer10Km) {
-        return Advice.Stay(gainS, "방금 바꿨어요, 조금 더 유지하세요")
-    }
+    if (justChanged) return Advice.Stay(gainS, "방금 바꿨어요, 조금 더 유지하세요")
+    if (i.changeAdviceLast10Km >= i.mode.maxChangesPer10Km) return Advice.Stay(gainS, "변경은 충분했어요, 이대로 가세요")
     return Advice.Change(i.signal, gainS, "${side}이 ${spoken(gainS)} 빨라요")
 }
 

@@ -4,7 +4,11 @@
     <!-- Read-only. No CONTROL_CAR_* permission: LaneFit never commands the car. -->
     <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />  <!-- turn signal -->
     <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />   <!-- steering angle, brake pedal, driving mode -->
-    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />   <!-- passenger seat occupancy -->
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />   <!-- front passenger and rear seat occupancy -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />      <!-- turn-by-turn: a signal the route needs is not a question -->
+    <uses-permission android:name="pleos.car.permission.FUSED_LOCATION" />  <!-- which road section the car is on (runtime) -->
+    <uses-permission android:name="pleos.car.permission.STT_SERVICE" />     <!-- one spoken follow-up question -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />      <!-- microphone for that question (runtime) -->
     <uses-permission android:name="pleos.car.permission.TTS_SERVICE" /> <!-- one-sentence speech -->
     <uses-permission android:name="android.car.permission.CAR_SPEED" />      <!-- vehicle speed (runtime) -->
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" /> <!-- gear: P unlocks the settings screen -->

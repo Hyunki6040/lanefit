@@ -1,12 +1,18 @@
-"""Drive the Pleos Connect emulator through one LaneFit scenario with real vehicle signals.
+"""Drive the Pleos Connect emulator through one LaneFit scenario with vehicle signals.
 
 Uses the emulator's Virtual Console HTTP API, so gear, speed, turn signal, steering angle, brake and
-seat occupancy reach the app through the Pleos SDK / AAOS. Lane speeds are still the in-app sample road.
+seat occupancy reach the app through the Pleos SDK / AAOS. Lane speeds come from the data source chosen
+on the parked screen (데이터 출처):
+
+    차량 신호 (default)  the built-in lane profile, inside the profiled road sections only. Move the position
+                         into a section with `adb emu geo fix <lon> <lat>` and give the app its lane (ramp merge,
+                         a spoken "지금 3차로야", or `--ei lane N` on a debug build). Elsewhere there is no advice.
+    예시 도로            made-up four-lane speeds, anywhere. The step names below (2-change, ...) match this source.
 
     adb forward tcp:8088 tcp:8088
     python3 scripts/drive_emulator.py [--shots DIR]
 
-Open LaneFit first and pick 데이터 출처 = 예시 도로 (parked screen).
+Open LaneFit first and pick the data source on the parked screen.
 """
 import argparse
 import math

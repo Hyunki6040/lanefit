@@ -1,0 +1,231 @@
+{
+  "source": "한국도로공사 고속도로 공공데이터 포털 AVC 원시자료 OpenAPI (15분 집계, 지점 속도)",
+  "period": [
+    "2026-10-28",
+    "2026-11-11"
+  ],
+  "horizon_km": 10.0,
+  "min_cars_per_15min": 20,
+  "method": "leave-one-day-out",
+  "all": {
+    "moves": 24962,
+    "actual_median_gain_s": 0.0,
+    "actual_share_no_gain": 0.5,
+    "actual_share_under_60s": 0.869,
+    "median_abs_error_s": 23.9,
+    "modes": {
+      "Rush": {
+        "threshold_s": 60,
+        "agreement": 0.874,
+        "change_said": 2525,
+        "change_said_share": 0.101,
+        "change_right": 0.526,
+        "change_not_a_loss": 0.785,
+        "stay_right": 0.913,
+        "actual_over_threshold_share": 0.131
+      },
+      "Flow": {
+        "threshold_s": 120,
+        "agreement": 0.944,
+        "change_said": 1091,
+        "change_said_share": 0.044,
+        "change_right": 0.57,
+        "change_not_a_loss": 0.821,
+        "stay_right": 0.961,
+        "actual_over_threshold_share": 0.062
+      },
+      "Calm": {
+        "threshold_s": 180,
+        "agreement": 0.964,
+        "change_said": 686,
+        "change_said_share": 0.027,
+        "change_right": 0.621,
+        "change_not_a_loss": 0.859,
+        "stay_right": 0.973,
+        "actual_over_threshold_share": 0.043
+      }
+    }
+  },
+  "sites": {
+    "0010AVI3908": {
+      "name": "경부선 기흥IC→수원신갈IC",
+      "days": 15,
+      "lanes": 5,
+      "bus_lanes": [
+        1
+      ],
+      "moves": 4612,
+      "actual_median_gain_s": 0.0,
+      "actual_share_no_gain": 0.501,
+      "actual_share_under_60s": 0.915,
+      "median_abs_error_s": 20.4,
+      "modes": {
+        "Rush": {
+          "threshold_s": 60,
+          "agreement": 0.911,
+          "change_said": 204,
+          "change_said_share": 0.044,
+          "change_right": 0.451,
+          "change_not_a_loss": 0.789,
+          "stay_right": 0.932,
+          "actual_over_threshold_share": 0.085
+        },
+        "Flow": {
+          "threshold_s": 120,
+          "agreement": 0.97,
+          "change_said": 34,
+          "change_said_share": 0.007,
+          "change_right": 0.382,
+          "change_not_a_loss": 0.794,
+          "stay_right": 0.974,
+          "actual_over_threshold_share": 0.028
+        },
+        "Calm": {
+          "threshold_s": 180,
+          "agreement": 0.984,
+          "change_said": 7,
+          "change_said_share": 0.002,
+          "change_right": 0.286,
+          "change_not_a_loss": 0.714,
+          "stay_right": 0.985,
+          "actual_over_threshold_share": 0.015
+        }
+      }
+    },
+    "0010AVI3917": {
+      "name": "경부선 수원신갈IC→기흥IC",
+      "days": 15,
+      "lanes": 5,
+      "bus_lanes": [
+        1
+      ],
+      "moves": 6326,
+      "actual_median_gain_s": 0.0,
+      "actual_share_no_gain": 0.5,
+      "actual_share_under_60s": 0.961,
+      "median_abs_error_s": 15.5,
+      "modes": {
+        "Rush": {
+          "threshold_s": 60,
+          "agreement": 0.961,
+          "change_said": 49,
+          "change_said_share": 0.008,
+          "change_right": 0.469,
+          "change_not_a_loss": 0.776,
+          "stay_right": 0.964,
+          "actual_over_threshold_share": 0.039
+        },
+        "Flow": {
+          "threshold_s": 120,
+          "agreement": 0.988,
+          "change_said": 5,
+          "change_said_share": 0.001,
+          "change_right": 0.2,
+          "change_not_a_loss": 0.6,
+          "stay_right": 0.989,
+          "actual_over_threshold_share": 0.011
+        },
+        "Calm": {
+          "threshold_s": 180,
+          "agreement": 0.993,
+          "change_said": 2,
+          "change_said_share": 0.0,
+          "change_right": 0.0,
+          "change_not_a_loss": 0.5,
+          "stay_right": 0.994,
+          "actual_over_threshold_share": 0.006
+        }
+      }
+    },
+    "0010AVI3962": {
+      "name": "경부선 신갈JC→서울TG",
+      "days": 15,
+      "lanes": 5,
+      "bus_lanes": [
+        1
+      ],
+      "moves": 7584,
+      "actual_median_gain_s": 0.0,
+      "actual_share_no_gain": 0.5,
+      "actual_share_under_60s": 0.834,
+      "median_abs_error_s": 29.4,
+      "modes": {
+        "Rush": {
+          "threshold_s": 60,
+          "agreement": 0.844,
+          "change_said": 961,
+          "change_said_share": 0.127,
+          "change_right": 0.537,
+          "change_not_a_loss": 0.785,
+          "stay_right": 0.888,
+          "actual_over_threshold_share": 0.166
+        },
+        "Flow": {
+          "threshold_s": 120,
+          "agreement": 0.928,
+          "change_said": 455,
+          "change_said_share": 0.06,
+          "change_right": 0.582,
+          "change_not_a_loss": 0.84,
+          "stay_right": 0.95,
+          "actual_over_threshold_share": 0.082
+        },
+        "Calm": {
+          "threshold_s": 180,
+          "agreement": 0.953,
+          "change_said": 272,
+          "change_said_share": 0.036,
+          "change_right": 0.621,
+          "change_not_a_loss": 0.882,
+          "stay_right": 0.965,
+          "actual_over_threshold_share": 0.056
+        }
+      }
+    },
+    "0010AVI3961": {
+      "name": "경부선 서울TG→신갈JC",
+      "days": 15,
+      "lanes": 5,
+      "bus_lanes": [
+        1
+      ],
+      "moves": 6440,
+      "actual_median_gain_s": 0.0,
+      "actual_share_no_gain": 0.5,
+      "actual_share_under_60s": 0.786,
+      "median_abs_error_s": 36.2,
+      "modes": {
+        "Rush": {
+          "threshold_s": 60,
+          "agreement": 0.799,
+          "change_said": 1311,
+          "change_said_share": 0.204,
+          "change_right": 0.532,
+          "change_not_a_loss": 0.786,
+          "stay_right": 0.867,
+          "actual_over_threshold_share": 0.214
+        },
+        "Flow": {
+          "threshold_s": 120,
+          "agreement": 0.901,
+          "change_said": 597,
+          "change_said_share": 0.093,
+          "change_right": 0.575,
+          "change_not_a_loss": 0.811,
+          "stay_right": 0.934,
+          "actual_over_threshold_share": 0.113
+        },
+        "Calm": {
+          "threshold_s": 180,
+          "agreement": 0.933,
+          "change_said": 405,
+          "change_said_share": 0.063,
+          "change_right": 0.63,
+          "change_not_a_loss": 0.847,
+          "stay_right": 0.953,
+          "actual_over_threshold_share": 0.084
+        }
+      }
+    }
+  }
+}

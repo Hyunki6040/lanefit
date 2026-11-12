@@ -7,7 +7,6 @@ import ai.pleos.playground.vehicle.constant.area.TurnSignalValue
 import ai.pleos.playground.vehicle.constant.control.DrivingModeType
 import ai.pleos.playground.vehicle.listener.BrakePedalStatusListener
 import ai.pleos.playground.vehicle.listener.DrivingModeStateListener
-import ai.pleos.playground.vehicle.listener.SeatOccupancyListener
 import ai.pleos.playground.vehicle.listener.SteeringWheelAngleListener
 import ai.pleos.playground.vehicle.listener.TurnSignalStateListener
 import android.car.Car
@@ -18,31 +17,38 @@ import android.car.hardware.property.CarPropertyManager
 import android.content.Context
 import android.os.Build
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 import android.util.Log
 import androidx.compose.runtime.mutableStateMapOf
+import java.util.concurrent.ConcurrentHashMap
 import app.lanefit.engine.DriveMode
 import app.lanefit.engine.Side
 import kotlin.math.abs
 
 /**
  * Reads the car. Read-only: no CONTROL permission, no setter is ever called.
- * Turn signal, steering angle, brake, driving mode and seat come from the Pleos Vehicle SDK;
+ * Turn signal, steering angle, brake, driving mode and seats come from the Pleos Vehicle SDK;
  * speed and gear come from the AAOS car properties because Vehicle SDK 2.3.2 has no speed API.
  */
 class VehicleSignals(private val context: Context) {
     enum class Signal(val ko: String) {
         SPEED("차속"), GEAR("기어"), TURN("방향지시등"), STEERING("조향각"),
-        BRAKE("브레이크 페달"), MODE("주행 모드"), SEAT("동승석 착석"),
+        BRAKE("브레이크 페달"), MODE("주행 모드"), SEAT("동승자 착석"),
     }
 
     /** Last value of each signal as text, for the on-screen check. No entry means nothing has arrived. */
     val status = mutableStateMapOf<Signal, String>()
 
     private val main = Handler(Looper.getMainLooper())
+
+    // The Vehicle SDK resolves each request with kotlin-reflect on the calling thread: seconds on first use,
+    // enough for an ANR (seen on the emulator). Every SDK request runs here; results are posted back to main.
+    private val worker = HandlerThread("vehicle").apply { start() }
+    private val io = Handler(worker.looper)
     private var vehicle: Vehicle? = null
     private var car: Car? = null
-    private var props: CarPropertyManager? = null
+    @Volatile private var props: CarPropertyManager? = null
 
     // Written on the main thread only (see got()).
     private var speedKmh: Double? = null
@@ -53,10 +59,18 @@ class VehicleSignals(private val context: Context) {
     private var brakeOn = false
     private var driveMode = DriveMode.NORMAL
     private var passenger = false
+    private val seats = ConcurrentHashMap.newKeySet<SeatValue>().apply { addAll(SEATS.keys) } // still worth asking; read on io
+    private val occupied = mutableSetOf<SeatValue>()
 
-    /** The current reading, or null until both speed and steering angle have arrived: no guessing. */
-    fun sample(tMs: Long): VehicleSample? {
-        val speed = speedKmh ?: return null
+    /**
+     * The current reading, or null until both speed and steering angle have arrived: no guessing.
+     * [gpsKmh] is the speed worked out from position fixes, used only when the car does not report its own.
+     */
+    fun sample(tMs: Long, gpsKmh: Double? = null): VehicleSample? {
+        val speed = speedKmh ?: gpsKmh?.also {
+            val text = "위치로 계산 · %.0f km/h".format(it)
+            if (status[Signal.SPEED] != text) status[Signal.SPEED] = text
+        } ?: return null
         val steering = steeringDeg ?: return null
         return VehicleSample(tMs, speed, steering * STEERING_LEFT_SIGN, signal, brakeOn, driveMode, passenger, inPark)
     }
@@ -104,10 +118,36 @@ class VehicleSignals(private val context: Context) {
         }
     }
 
-    private fun onSeat(v: Boolean?) {
+    private fun onSeat(seat: SeatValue, v: Boolean?) {
         v ?: return
-        val occupied = v != SEAT_INVERTED
-        got(Signal.SEAT, if (occupied) "착석" else "비어 있음") { passenger = occupied }
+        main.post {
+            if (v != SEAT_INVERTED) occupied += seat else occupied -= seat
+            passenger = occupied.isNotEmpty()
+            status[Signal.SEAT] = SEATS.filterKeys { it in occupied }.values.joinToString("·").ifEmpty { "비어 있음" }
+        }
+    }
+
+    /** A seat the car does not have (no second row, no centre seat) is dropped; the others keep being read. */
+    private fun seatFailed(seat: SeatValue, e: Exception) {
+        main.post {
+            seats -= seat
+            occupied -= seat
+            passenger = occupied.isNotEmpty()
+            if (seats.isEmpty()) failed(Signal.SEAT, e)
+        }
+    }
+
+    // Seat listeners drop callbacks once more than one seat is registered, so every seat is read every two seconds.
+    // Runs on io and re-arms itself only after a round is done, so a slow service never queues rounds up.
+    private fun pollSeats(v: Vehicle) {
+        for (seat in seats.toList()) {
+            try {
+                v.getSeat().getCurrentSeatOccupancy(SeatArea(seat), { onSeat(seat, it) }, { seatFailed(seat, it) })
+            } catch (e: RuntimeException) {
+                seatFailed(seat, e)
+            }
+        }
+        io.postDelayed({ pollSeats(v) }, SEAT_POLL_MS)
     }
 
     private val turnL = object : TurnSignalStateListener {
@@ -125,10 +165,6 @@ class VehicleSignals(private val context: Context) {
     private val modeL = object : DrivingModeStateListener {
         override fun onDrivingModeStateUpdated(state: DrivingModeType?) = onMode(state)
         override fun onFailed(e: Exception) = failed(Signal.MODE, e)
-    }
-    private val seatL = object : SeatOccupancyListener {
-        override fun onSeatOccupancyUpdated(p0: Boolean?) = onSeat(p0)
-        override fun onFailed(p0: Exception) = failed(Signal.SEAT, p0)
     }
 
     private val carCb = object : CarPropertyManager.CarPropertyEventCallback {
@@ -158,8 +194,8 @@ class VehicleSignals(private val context: Context) {
         if (vehicle != null) return
         val v = Vehicle(context.applicationContext).also { it.initialize(); vehicle = it }
         // initialize() has no callback: register after a short wait, then read again in case the first read was dropped.
-        main.postDelayed({ register(v); read(v) }, 1_500)
-        main.postDelayed({ read(v) }, 6_000)
+        io.postDelayed({ register(v); read(v); pollSeats(v) }, 1_500)
+        io.postDelayed({ read(v) }, 6_000)
     }
 
     private fun register(v: Vehicle) {
@@ -167,7 +203,6 @@ class VehicleSignals(private val context: Context) {
         attempt(Signal.STEERING) { v.getSteeringWheel().registerSteeringWheelAngle(steerL) }
         attempt(Signal.BRAKE) { v.getBrake().registerBrakePedalStatus(brakeL) }
         attempt(Signal.MODE) { v.getDrivingMode().registerDrivingModeState(modeL) }
-        attempt(Signal.SEAT) { v.getSeat().registerSeatOccupancy(PASSENGER_SEAT, seatL) }
     }
 
     /** A new listener does not always get the current value, so ask for it once. */
@@ -178,7 +213,6 @@ class VehicleSignals(private val context: Context) {
         }
         attempt(Signal.BRAKE) { v.getBrake().getCurrentBrakePedalStatus({ onBrake(it) }, { failed(Signal.BRAKE, it) }) }
         attempt(Signal.MODE) { v.getDrivingMode().getCurrentDrivingModeState({ onMode(it) }, { failed(Signal.MODE, it) }) }
-        attempt(Signal.SEAT) { v.getSeat().getCurrentSeatOccupancy(PASSENGER_SEAT, { onSeat(it) }, { failed(Signal.SEAT, it) }) }
     }
 
     private fun attempt(s: Signal, call: () -> Unit) {
@@ -196,7 +230,8 @@ class VehicleSignals(private val context: Context) {
             // Without a listener the platform finishes the activity whenever the car service restarts (seen on
             // the emulator). With one, speed and gear are dropped until the service is back, then watched again.
             car = Car.createCar(context, null, Car.CAR_WAIT_TIMEOUT_DO_NOT_WAIT) { c, ready ->
-                main.post { if (ready) onCarReady(c) else onCarLost() }
+                // Car-service calls block too; one queue so a late "ready" cannot land after "lost".
+                io.post { if (ready) onCarReady(c) else main.post { onCarLost() } }
             }
         } catch (e: RuntimeException) {
             failed(Signal.SPEED, e)
@@ -226,7 +261,7 @@ class VehicleSignals(private val context: Context) {
     private fun watch(p: CarPropertyManager, id: Int, s: Signal) {
         try {
             if (p.getCarPropertyConfig(id) == null) {
-                status[s] = UNSUPPORTED
+                main.post { status[s] = UNSUPPORTED }
                 return
             }
             // 10 Hz for speed (braking is judged from it); the rate is ignored for on-change properties like gear.
@@ -234,7 +269,7 @@ class VehicleSignals(private val context: Context) {
             onCar(p.getProperty<Any>(id, 0)) // a continuous property can stay silent while unchanged
         } catch (e: SecurityException) {
             Log.w(TAG, "${s.name} not permitted", e)
-            status[s] = "권한 없음"
+            main.post { status[s] = "권한 없음" }
         } catch (e: RuntimeException) {
             failed(s, e)
         }
@@ -242,14 +277,17 @@ class VehicleSignals(private val context: Context) {
 
     fun stop() {
         main.removeCallbacksAndMessages(null)
+        io.removeCallbacksAndMessages(null)
         vehicle?.let { v ->
-            runCatching { v.getTurnSignal().unregisterTurnSignalState(turnL) }
-            runCatching { v.getSteeringWheel().unregisterSteeringWheelAngle(steerL) }
-            runCatching { v.getBrake().unregisterBrakePedalStatus(brakeL) }
-            runCatching { v.getDrivingMode().unregisterDrivingModeState(modeL) }
-            runCatching { v.getSeat().unregisterSeatOccupancy(PASSENGER_SEAT, seatL) }
-            runCatching { v.release() }
+            io.post {
+                runCatching { v.getTurnSignal().unregisterTurnSignalState(turnL) }
+                runCatching { v.getSteeringWheel().unregisterSteeringWheelAngle(steerL) }
+                runCatching { v.getBrake().unregisterBrakePedalStatus(brakeL) }
+                runCatching { v.getDrivingMode().unregisterDrivingModeState(modeL) }
+                runCatching { v.release() }
+            }
         }
+        worker.quitSafely() // runs the release above first; this object is not started again
         vehicle = null
         runCatching { props?.unregisterCallback(carCb) }
         runCatching { car?.disconnect() }
@@ -265,8 +303,13 @@ class VehicleSignals(private val context: Context) {
         // Flip to 1.0 if a real car reports left as positive. Lane direction is wrong otherwise.
         const val STEERING_LEFT_SIGN = -1.0
 
-        // Left-hand-drive car: the front passenger sits at row 1 right.
-        val PASSENGER_SEAT = SeatArea(SeatValue.ROW_1_RIGHT)
+        const val SEAT_POLL_MS = 2_000L
+
+        // Left-hand-drive car: the driver sits at row 1 left, everyone else is a passenger.
+        val SEATS = linkedMapOf(
+            SeatValue.ROW_1_RIGHT to "조수석", SeatValue.ROW_2_LEFT to "뒷좌석 왼쪽",
+            SeatValue.ROW_2_CENTER to "뒷좌석 가운데", SeatValue.ROW_2_RIGHT to "뒷좌석 오른쪽",
+        )
 
         // ponytail: emulator v2.1.0 reports occupancy inverted (three teams found it). Real-car polarity is unverified.
         val SEAT_INVERTED = Build.HARDWARE == "ranchu" || Build.HARDWARE == "goldfish"

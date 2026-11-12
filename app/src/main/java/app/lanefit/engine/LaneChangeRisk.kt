@@ -16,6 +16,8 @@ data class RiskResult(
     val score: Int,
     val level: RiskLevel,
     val leadDistanceM: Double?,
+    /** The legal signal distance this change was scored against: 100 m or 30 m. */
+    val requiredM: Double,
     val coaching: String,
     /** false when the coaching line is praise, so it is shown but not spoken. */
     val needsCoaching: Boolean,
@@ -53,5 +55,5 @@ fun scoreLaneChange(i: RiskInput): RiskResult {
         score < 60 -> RiskLevel.MID
         else -> RiskLevel.HIGH
     }
-    return RiskResult(score, level, leadM, coaching, needsCoaching = points >= 5.0)
+    return RiskResult(score, level, leadM, requiredM, coaching, needsCoaching = points >= 5.0)
 }

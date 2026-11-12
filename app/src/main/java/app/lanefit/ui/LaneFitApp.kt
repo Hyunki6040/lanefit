@@ -112,8 +112,10 @@ fun LaneFitApp(
     ui: UiState,
     source: Source,
     signals: List<Pair<String, String>>,
+    voiceOn: Boolean,
     onPinMode: (Mode?) -> Unit,
     onCalmOnPassenger: (Boolean) -> Unit,
+    onVoice: (Boolean) -> Unit,
     onSource: (Source) -> Unit,
 ) {
     val c = if (isSystemInDarkTheme()) PleosDark else PleosLight
@@ -127,7 +129,7 @@ fun LaneFitApp(
                 label = "screen",
             ) { parked ->
                 if (parked) {
-                    Parked(ui, source, signals, wide, pad, onPinMode, onCalmOnPassenger, onSource)
+                    Parked(ui, source, signals, voiceOn, wide, pad, onPinMode, onCalmOnPassenger, onVoice, onSource)
                 } else {
                     Driving(ui, source, wide, pad)
                 }
@@ -156,7 +158,7 @@ private fun Driving(ui: UiState, source: Source, wide: Boolean, pad: Dp) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Status(ui)
                     Spacer(Modifier.weight(1f))
-                    source.label?.let { Pill(it) }
+                    (source.label ?: ui.road)?.let { Pill(it) }
                 }
                 MessageCard(ui, Modifier.weight(1f).fillMaxWidth())
             }
@@ -165,7 +167,7 @@ private fun Driving(ui: UiState, source: Source, wide: Boolean, pad: Dp) {
     } else {
         Column(Modifier.fillMaxSize().padding(pad), spacedBy(GAP)) {
             Status(ui)
-            source.label?.let { Pill(it) }
+            (source.label ?: ui.road)?.let { Pill(it) }
             MessageCard(ui, Modifier.weight(1f).fillMaxWidth())
             side(Modifier.weight(0.8f).fillMaxWidth())
         }
@@ -380,7 +382,7 @@ private fun RiskPanel(r: RiskResult, modifier: Modifier) {
         }
         Spacer(Modifier.height(GAP))
         T(
-            r.leadDistanceM?.let { "신호 선행 ${it.roundToInt()}m · 기준 100m" } ?: "방향지시등 없이 바꿨어요",
+            r.leadDistanceM?.let { "신호 선행 ${it.roundToInt()}m · 기준 ${r.requiredM.roundToInt()}m" } ?: "방향지시등 없이 바꿨어요",
             PleosType.BodyS, c.textSecondary,
         )
         T("참고용 추정치예요", PleosType.BodyS, c.textTertiary)
@@ -395,16 +397,18 @@ private fun Parked(
     ui: UiState,
     source: Source,
     signals: List<Pair<String, String>>,
+    voiceOn: Boolean,
     wide: Boolean,
     pad: Dp,
     onPinMode: (Mode?) -> Unit,
     onCalmOnPassenger: (Boolean) -> Unit,
+    onVoice: (Boolean) -> Unit,
     onSource: (Source) -> Unit,
 ) {
     val cardPad = if (wide) 40.dp else 32.dp
     val report = @Composable { Enter(0) { ReportCard(ui.report, source, if (wide) 3 else 2, cardPad) } }
-    val mode = @Composable { Enter(1) { ModeCard(ui, cardPad, onPinMode, onCalmOnPassenger) } }
-    val data = @Composable { Enter(2) { SourceCard(source, cardPad, onSource) } }
+    val mode = @Composable { Enter(1) { ModeCard(ui, voiceOn, cardPad, onPinMode, onCalmOnPassenger, onVoice) } }
+    val data = @Composable { Enter(2) { SourceCard(source, ui.road, cardPad, onSource) } }
     val check = @Composable { Enter(3) { SignalCard(signals, cardPad) } }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(pad), spacedBy(GAP)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -455,7 +459,14 @@ private fun ReportCard(r: Report, source: Source, columns: Int, pad: Dp) {
 }
 
 @Composable
-private fun ModeCard(ui: UiState, pad: Dp, onPinMode: (Mode?) -> Unit, onCalmOnPassenger: (Boolean) -> Unit) {
+private fun ModeCard(
+    ui: UiState,
+    voiceOn: Boolean,
+    pad: Dp,
+    onPinMode: (Mode?) -> Unit,
+    onCalmOnPassenger: (Boolean) -> Unit,
+    onVoice: (Boolean) -> Unit,
+) {
     val c = LocalPleos.current
     PCard(Modifier.fillMaxWidth(), pad = pad) {
         T("추천 모드", PleosType.TitleM)
@@ -466,14 +477,15 @@ private fun ModeCard(ui: UiState, pad: Dp, onPinMode: (Mode?) -> Unit, onCalmOnP
             "지금 ${ui.mode.label} · ${ui.mode.thresholdS / 60}분 이상 빨라질 때만 알려드려요",
             PleosType.BodyS, c.textSecondary,
         )
-        T("10km당 최대 ${ui.mode.maxChangesPer10Km}회 · 자동은 차량 주행 모드를 따라가요", PleosType.LabelM, c.textTertiary)
+        T("변경 안내는 10km당 최대 ${ui.mode.maxChangesPer10Km}회 · 자동은 차량 주행 모드를 따라가요", PleosType.LabelM, c.textTertiary)
         Spacer(Modifier.height(GAP))
         SwitchRow("동승자가 타면 자동으로 Calm", ui.calmOnPassenger, onCalmOnPassenger)
+        SwitchRow("음성으로 묻기 · “지금 바꿀까?”", voiceOn, onVoice)
     }
 }
 
 @Composable
-private fun SourceCard(source: Source, pad: Dp, onSource: (Source) -> Unit) {
+private fun SourceCard(source: Source, road: String?, pad: Dp, onSource: (Source) -> Unit) {
     val c = LocalPleos.current
     PCard(Modifier.fillMaxWidth(), pad = pad) {
         T("데이터 출처", PleosType.TitleM)
@@ -485,7 +497,8 @@ private fun SourceCard(source: Source, pad: Dp, onSource: (Source) -> Unit) {
         Spacer(Modifier.height(16.dp))
         T(
             when (source) {
-                Source.CAR -> "차량에서 받은 신호만 써요. 차로별 속도 데이터가 아직 연결되지 않아 추천은 나오지 않아요."
+                Source.CAR -> "차량 신호와 위치에 한국도로공사 공개 자료로 만든 차로별 속도를 더해요. " +
+                    (road?.let { "지금 $it 구간이에요." } ?: "차로 자료가 있는 구간에 들어서면 알려드려요.")
                 Source.SAMPLE_ROAD -> "차량 신호에 예시로 넣은 4차로 속도를 더해요. 실제 도로 데이터가 아니에요."
                 Source.SIMULATION -> "미리 만든 66초 주행을 재생해요. 측정값이 아니에요."
             },
@@ -499,7 +512,7 @@ private fun SignalCard(signals: List<Pair<String, String>>, pad: Dp) {
     val c = LocalPleos.current
     PCard(Modifier.fillMaxWidth(), pad = pad) {
         T("차량 신호 점검", PleosType.TitleM)
-        T("차량에서 실제로 받은 값만 표시해요", PleosType.LabelM, c.textSecondary)
+        T("차량과 Pleos 서비스에서 실제로 받은 값만 표시해요", PleosType.LabelM, c.textSecondary)
         Spacer(Modifier.height(16.dp))
         for ((name, status) in signals) {
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), spacedBy(16.dp)) {

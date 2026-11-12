@@ -7,6 +7,7 @@ import app.lanefit.engine.LaneChange
 import app.lanefit.engine.LaneEstimate
 import app.lanefit.engine.LaneEstimator
 import app.lanefit.engine.Mode
+import app.lanefit.engine.MIN_CONFIDENCE
 import app.lanefit.engine.RiskInput
 import app.lanefit.engine.RiskLevel
 import app.lanefit.engine.RiskResult
@@ -58,6 +59,8 @@ data class UiState(
     val passenger: Boolean = false,
     val card: Card = Card.Idle,
     val report: Report = Report(),
+    /** Name of the road section the lane speeds come from; null off the roads the app has lane data for. */
+    val road: String? = null,
 )
 
 /** Turns vehicle samples into screen state and one-sentence speech. Read-only: it never commands the car. */
@@ -68,14 +71,24 @@ class DriveSession(private val speak: (String) -> Unit = {}) {
     /** Set by the navigation adapter when the route itself needs a signal (exit, junction). */
     var routeSignal: Side? = null
 
-    private val estimator = LaneEstimator()
-    private var laneSpeeds = emptyList<Double>()
+    /** true on a motorway, false on other roads; null when neither the matched road nor the route says. */
+    var highway: Boolean? = null
+
+    // Tracked from the speed at which a signal is answered, or a change made in slow traffic would go unseen.
+    private val estimator = LaneEstimator(minSpeedKmh = MOVING_KMH)
+    private var laneSpeeds = emptyList<Double?>()
     private var horizonKm = 0.0
     private var prev: VehicleSample? = null
     private var cardUntilMs = 0L
     private var stoppedSinceMs: Long? = null
     private var lastRisk: RiskLevel? = null
     private val changes = ArrayDeque<Pair<Long, Double>>() // time, odometer km
+    private val changeAdviceKm = ArrayDeque<Double>() // odometer km of every "change" answer
+    private var unanswered: Side? = null
+    private var voiceAsk: List<Side>? = null
+    private var lanesFromRight: Int? = null
+    private var mergeKm = 0.0
+    private var leftRoadKm: Double? = null // odometer where the roads with lane data were left
     private var odometerKm = 0.0
     private val speedLog = ArrayDeque<Pair<Long, Double>>() // time, km/h over the last BRAKE_WINDOW_MS
     private var pendingRisk: PendingRisk? = null
@@ -91,10 +104,44 @@ class DriveSession(private val speak: (String) -> Unit = {}) {
         state = state.copy(estimate = estimator.estimate)
     }
 
-    fun onLaneSpeeds(speedsKmh: List<Double>, horizonKm: Double) {
-        if (speedsKmh.any { !it.isFinite() || it < 0 } || !horizonKm.isFinite() || horizonKm <= 0) return
+    /** A null lane has no usable speed (bus lane); an empty list means no lane data here, and keeps the app silent. */
+    fun onLaneSpeeds(speedsKmh: List<Double?>, horizonKm: Double) {
+        if (speedsKmh.any { it != null && (!it.isFinite() || it < 0) } || !horizonKm.isFinite() || horizonKm <= 0) return
         laneSpeeds = speedsKmh
         this.horizonKm = horizonKm
+    }
+
+    /** The route says the car has just merged from a ramp: rightmost lane, of a road that may not be known yet. */
+    fun onMerge() {
+        lanesFromRight = 0
+        mergeKm = odometerKm
+    }
+
+    /** The road under the car: lane count and name, or nulls off the roads the app has lane data for. */
+    fun onRoad(laneCount: Int?, name: String?) {
+        if (state.road != name) state = state.copy(road = name)
+        if (laneCount == null) {
+            if (leftRoadKm == null) leftRoadKm = odometerKm
+            return
+        }
+        val away = leftRoadKm?.let { odometerKm - it > MERGE_CARRY_KM } == true
+        leftRoadKm = null
+        val fromRight = lanesFromRight
+        val lane = estimator.estimate.lane
+        if (fromRight != null) {
+            lanesFromRight = null
+            if (odometerKm - mergeKm <= MERGE_CARRY_KM) onAnchor(laneCount, laneCount - fromRight, MERGE_RELIABILITY)
+        } else if (lane != null && (away || estimator.estimate.laneCount != laneCount)) {
+            // Lanes were added or dropped, or the car was off the known roads for a while: the old number no
+            // longer says which lane this is.
+            estimator.onAnchor(laneCount, lane.coerceAtMost(laneCount), 0.0)
+            state = state.copy(estimate = estimator.estimate)
+        }
+    }
+
+    /** A spoken question ("지금 바꿀까?"), answered on the next sample: one side, or the better of both. */
+    fun ask(side: Side?) {
+        voiceAsk = side?.let(::listOf) ?: Side.entries
     }
 
     fun pinMode(mode: Mode?) {
@@ -113,6 +160,11 @@ class DriveSession(private val speak: (String) -> Unit = {}) {
         // A long gap means nobody was watching (the app was behind another one): it is not distance driven.
         val dtS = if (p == null) 0.0 else ((s.tMs - p.tMs) / 1000.0).let { if (it > MAX_GAP_S) 0.0 else it }
         odometerKm += s.speedKmh * dtS / 3600.0
+        // Lane changes in a gap this long went unseen: the number is a guess until the next anchor.
+        if (p != null && s.tMs - p.tMs > LANE_STALE_MS) {
+            lanesFromRight = null
+            estimator.estimate.lane?.let { estimator.onAnchor(estimator.estimate.laneCount, it, 0.0) }
+        }
         // Published in 0.1 km steps so the screen state only changes when something visible does.
         var report = state.report.copy(distanceKm = (odometerKm * 10).roundToInt() / 10.0)
         var card = state.card
@@ -135,6 +187,7 @@ class DriveSession(private val speak: (String) -> Unit = {}) {
             changes.addLast(s.tMs to odometerKm)
             while (changes.first().let { it.first < s.tMs - 60_000 && it.second < odometerKm - 10.0 }) changes.removeFirst()
             report = report.copy(laneChanges = report.laneChanges + 1)
+            lanesFromRight = lanesFromRight?.let { it + if (change.side == Side.LEFT) change.lanes else -change.lanes }?.takeIf { it >= 0 }
             pendingAdvice?.takeIf { it.side == change.side }?.let {
                 if (!it.wasStay) report = report.copy(savedS = report.savedS + it.gainS)
                 pendingAdvice = null
@@ -152,8 +205,13 @@ class DriveSession(private val speak: (String) -> Unit = {}) {
             if (s.tMs >= pr.dueMs) {
                 val recent = changes.count { it.first < pr.change.tMs && it.first >= pr.change.tMs - 60_000 }
                 val c = pr.change
+                // ponytail: the SDK gives no road class. Off the matched roads and without a route, a change made
+                // at 80 km/h or more is scored against the motorway rule. Use the map's road class when it is exposed.
                 val result = scoreLaneChange(
-                    RiskInput(c.signalLeadMs, c.speedKmh, c.peakSteeringRateDegS, pr.hardBrake, recent),
+                    RiskInput(
+                        c.signalLeadMs, c.speedKmh, c.peakSteeringRateDegS, pr.hardBrake, recent,
+                        highway ?: (c.speedKmh >= MOTORWAY_KMH),
+                    ),
                 )
                 lastRisk = result.level
                 report = report.copy(riskScores = report.riskScores + result.score)
@@ -164,25 +222,42 @@ class DriveSession(private val speak: (String) -> Unit = {}) {
         }
 
         val signal = s.signal
-        if (signal != null && signal != p?.signal && pendingAdvice?.side != signal) {
-            val since = changes.lastOrNull()?.let { (s.tMs - it.first) / 1000.0 }
-            val last10Km = changes.count { it.second > odometerKm - 10.0 }
-            val input = AdviceInput(
-                estimator.estimate, signal, laneSpeeds, horizonKm, mode, last10Km, since, routeSignal == signal,
-            )
-            when (val advice = advise(input)) {
-                Advice.Silent -> Unit
-                is Advice.Stay -> {
-                    report = report.copy(stayShown = report.stayShown + 1)
-                    pendingAdvice = PendingAdvice(signal, advice.gainS, wasStay = true, s.tMs + FOLLOW_WINDOW_MS)
-                    card = show(Card.Stay(signal, advice.text, advice.gainS), s.tMs)
-                    speak(advice.text)
-                }
-                is Advice.Change -> {
-                    pendingAdvice = PendingAdvice(signal, advice.gainS, wasStay = false, s.tMs + FOLLOW_WINDOW_MS)
-                    card = show(Card.Change(advice.side, advice.text, advice.gainS), s.tMs)
-                    speak(advice.text)
-                }
+        if (signal != p?.signal) unanswered = signal
+        val asked = voiceAsk.also { voiceAsk = null }
+        // A signal switched on while standing still (parked, at a light) is answered once the car is moving.
+        val sides = when {
+            asked != null -> asked
+            signal != null && unanswered == signal && s.speedKmh >= MOVING_KMH -> {
+                unanswered = null
+                listOf(signal).filter { pendingAdvice?.side != it }
+            }
+            else -> emptyList()
+        }
+        while (changeAdviceKm.firstOrNull()?.let { it <= odometerKm - 10.0 } == true) changeAdviceKm.removeFirst()
+        val since = changes.lastOrNull()?.let { (s.tMs - it.first) / 1000.0 }
+        val answers = sides.map { side ->
+            // A spoken question is a question even when the route needs that side.
+            val forRoute = asked == null && routeSignal == side
+            side to advise(AdviceInput(estimator.estimate, side, laneSpeeds, horizonKm, mode, changeAdviceKm.size, since, forRoute))
+        }
+        val go = answers.filter { it.second is Advice.Change }.maxByOrNull { (it.second as Advice.Change).gainS }
+        val stay = answers.filter { it.second is Advice.Stay }.maxByOrNull { (it.second as Advice.Stay).gainS }
+        val (side, advice) = go ?: stay ?: (null to Advice.Silent)
+        when (advice) {
+            Advice.Silent -> if (asked != null) speak(if (known()) "지금은 비교할 차로 자료가 없어요" else "아직 내 차선을 확인하지 못했어요")
+            is Advice.Stay -> if (side != null) {
+                // Both sides were asked about and both are slower: say so instead of naming one of them.
+                val text = if (sides.size > 1 && advice.gainS <= -5) "지금 차선이 가장 빨라요, 유지하세요" else advice.text
+                report = report.copy(stayShown = report.stayShown + 1)
+                pendingAdvice = PendingAdvice(side, advice.gainS, wasStay = true, s.tMs + FOLLOW_WINDOW_MS)
+                card = show(Card.Stay(side, text, advice.gainS), s.tMs)
+                speak(text)
+            }
+            is Advice.Change -> {
+                changeAdviceKm.addLast(odometerKm)
+                pendingAdvice = PendingAdvice(advice.side, advice.gainS, wasStay = false, s.tMs + FOLLOW_WINDOW_MS)
+                card = show(Card.Change(advice.side, advice.text, advice.gainS), s.tMs)
+                speak(advice.text)
             }
         }
 
@@ -198,6 +273,8 @@ class DriveSession(private val speak: (String) -> Unit = {}) {
         )
     }
 
+    private fun known() = estimator.estimate.let { it.lane != null && it.confidence >= MIN_CONFIDENCE }
+
     private fun show(card: Card, tMs: Long): Card {
         cardUntilMs = tMs + CARD_MS
         return card
@@ -211,5 +288,12 @@ class DriveSession(private val speak: (String) -> Unit = {}) {
         const val HARD_BRAKE_MS2 = 3.0
         const val BRAKE_WINDOW_MS = 1_000L
         const val MAX_GAP_S = 1.0
+        const val LANE_STALE_MS = 5_000L
+        const val MOVING_KMH = 10.0
+        const val MOTORWAY_KMH = 80.0
+
+        // A ramp merge puts the car in the rightmost lane, but ramps with two lanes or a left merge exist.
+        const val MERGE_RELIABILITY = 0.8
+        const val MERGE_CARRY_KM = 5.0
     }
 }
