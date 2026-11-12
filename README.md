@@ -7,10 +7,12 @@ LaneFit 0.2.0 · 기본 답은 Stay · 차량 제어 없음
 
 <p align="center">
 <a href="#한눈에-보기">한눈에 보기</a> ·
+<a href="#소개-영상">소개 영상</a> ·
 <a href="#필요한-이유">필요한 이유</a> ·
 <a href="#동작-방식">동작 방식</a> ·
 <a href="#핵심-기능">핵심 기능</a> ·
 <a href="#실제-도로-자료로-확인한-근거">데이터 근거</a> ·
+<a href="#데이터와-ai-기술">데이터·AI 기술</a> ·
 <a href="#차량과-연결되는-지점">차량 연결</a> ·
 <a href="#안전을-먼저-정한-설계">안전 설계</a> ·
 <a href="#시장과-비즈니스">시장과 비즈니스</a> ·
@@ -33,6 +35,11 @@ LaneFit 0.2.0 · 기본 답은 Stay · 차량 제어 없음
 
 <p align="center"><img src="docs/media/drive-66s.gif" alt="66초 시뮬레이션 주행을 3배속으로 재생한 앱 화면. Stay 안내, 변경 안내, 위험 지수, 동승자 Calm, 주행 리포트 순서" width="100%"></p>
 <p align="center"><sub>앱에 내장된 66초 시뮬레이션 주행을 3배속으로 재생한 화면입니다. Stay 안내, 변경 안내, 위험 지수, 동승자 Calm, 주행 리포트가 차례로 나옵니다. 화면 속 속도와 시간은 시뮬레이션 값입니다.</sub></p>
+
+## 소개 영상
+
+<p align="center"><a href="docs/media/video/lanefit-short-B.mp4"><img src="docs/media/short-b.gif" alt="밤의 고속도로 위성 화면에서 정체 구간, 도로 CCTV 관제실, 차로별 속도 그래프, '81.5%는 1분을 못 아꼈다' 수치, 방향지시등을 켜는 손으로 이어지는 소개 영상" width="36%"></a></p>
+<p align="center"><sub>「도로는 이미 알고 있다」 46초입니다. 미리보기를 누르면 소리가 있는 MP4가 열립니다. 앱 화면은 Pleos Connect Emulator에서 실행한 실제 화면이고, 그래프와 수치는 한국도로공사 공개 자료입니다. 인물과 도로, CCTV 관제실 장면은 AI로 만든 연출 영상이며 화면마다 표기했습니다.</sub></p>
 
 ## 필요한 이유
 
@@ -173,6 +180,33 @@ python3 -I scripts/lane_profile.py build   # 차로 속도 프로필과 백테�
 <img src="docs/media/lane-gap.png" alt="경부선 신갈JC-서울TG 한 지점의 2026-11-10 하루 차로별 평균속도와, 옆 차로로 옮길 때 10km에서 아끼는 시간의 분포" width="100%">
 <p align="center"><sub>하루 예시입니다. 신갈JC–서울TG 한 지점의 2026-11-10 자료이며, 이날 인접 차로 이동 492건 중 81.5%가 1분 미만이었습니다. 요약은 <a href="docs/research/avc-lane-gap.json">docs/research/avc-lane-gap.json</a>에 있습니다.</sub></p>
 
+## 데이터와 AI 기술
+
+<p align="center"><img src="docs/media/cctv-ai.gif" alt="도로 CCTV 화면 위에 차로 영역과 움직임 상자, 차로별 상대 흐름 막대가 겹쳐지는 장면" width="38%"></p>
+<p align="center"><sub>도로 CCTV 화면에서 차로별 흐름을 읽는 모습입니다. 화면은 AI로 만든 연출 영상이고, 겹쳐 그린 차로 영역과 상자, 막대는 <code>scripts/analyze_cctv.py</code>가 이 컷에서 계산한 값입니다. 실제 도로의 측정값이 아닙니다.</sub></p>
+
+레인핏은 세 가지 자료를 읽습니다.
+
+| 자료 | 읽는 방법 | 쓰임 | 코드 |
+| --- | --- | --- | --- |
+| 차량 신호 | Pleos SDK 5종과 Android Automotive 차량 속성 | 질문 시점, 내 차선 추정, 변경 후 위험 지수 | [app/](app) |
+| 차로별 통행속도 | 한국도로공사 AVC 차로별 15분 평균속도 15일치로 만든 프로필 | "앞으로 10km에서 몇 초"를 계산 | [scripts/lane_profile.py](scripts/lane_profile.py) |
+| 도로 CCTV 영상 | 컴퓨터 비전(광학 흐름)으로 차로별 상대 속도와 통과 대수를 읽음 | 차로별 흐름을 영상에서 확인하는 분석 도구 | [scripts/analyze_cctv.py](scripts/analyze_cctv.py) |
+
+**도로 CCTV 영상 분석.** 고정 CCTV 화면에서 차로마다 영역을 잡고, 연속한 프레임의 광학 흐름(Farneback)에서 움직이는 화소만 골라 차로별 중앙 속도를 구합니다. 통과 대수는 차로 가운데 검지선의 점유가 꺼졌다 켜지는 횟수로 셉니다. 정답을 아는 합성 3차로 영상(120·240·60 px/s, 6·8·3대)에서 세 차로 모두 속도 오차 0%, 통과 대수 일치입니다. 속도는 같은 높이에서 차로끼리 견주는 상대 속도이고, 야간 영상에서는 전조등 빛 번짐 때문에 통과 대수가 실제보다 많게 나옵니다. 실제 CCTV 영상은 저장소와 소개 영상에 넣지 않습니다.
+
+```sh
+uv run -q --with opencv-python-headless --with numpy python -I scripts/analyze_cctv.py --selftest
+```
+
+**AI가 쓰이는 곳.**
+
+- 영상: 도로 CCTV에서 차로별 흐름을 읽는 컴퓨터 비전 분석입니다.
+- 음성: 질문을 듣는 음성 인식과 한 문장으로 답하는 음성 합성은 Pleos SpeechToText, TextToSpeech의 온디바이스 모드로 동작합니다.
+- 판단: 옮길 만한지는 차로 속도 프로필과 모드 기준이라는 규칙으로 정합니다. 같은 입력에는 같은 답을 하고 근거를 "40초", "2분" 같은 숫자로 보여 줍니다.
+
+방법과 한계는 [docs/research/backtest.md](docs/research/backtest.md) 6절에 있습니다.
+
 ## 차량과 연결되는 지점
 
 레인핏은 Pleos SDK 5종으로 차량과 연결됩니다. 모두 읽기 전용입니다.
@@ -258,7 +292,7 @@ JVM 단위 테스트 27개(EngineTest 16, DriveSessionTest 11)가 함께 실행�
 
 | 자료 | 위치 |
 | --- | --- |
-| 서명된 release APK | [apk/양주쀼_LaneFit_release.apk](apk/양주쀼_LaneFit_release.apk) |
+| 서명된 release APK | [GitHub Release v0.2.0](https://github.com/Hyunki6040/lanefit/releases/tag/v0.2.0) · [apk/양주쀼_LaneFit_release.apk](apk/양주쀼_LaneFit_release.apk) |
 | 빌드·실행 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
 | 서비스 소개 본문 | [docs/submission/proposal.md](docs/submission/proposal.md) |
 | 디자인 적용값과 전체 화면 캡처 | [docs/design/DESIGN.md](docs/design/DESIGN.md) · [docs/design/screens](docs/design/screens) |
@@ -266,8 +300,8 @@ JVM 단위 테스트 27개(EngineTest 16, DriveSessionTest 11)가 함께 실행�
 | 데이터 분석과 백테스트 | [docs/research/backtest.md](docs/research/backtest.md) |
 | 15일 백테스트 요약(JSON) | [docs/research/lane-profile-backtest.json](docs/research/lane-profile-backtest.json) |
 | 차로 속도 프로필·백테스트 코드 | [scripts/lane_profile.py](scripts/lane_profile.py) |
-| 도로 카메라 영상 흐름 분석 도구(차로별 상대 속도·통과 대수) | [scripts/analyze_cctv.py](scripts/analyze_cctv.py) |
-| 소개 영상 | [docs/media/video](docs/media/video) |
+| 도로 CCTV 영상 흐름 분석 도구(차로별 상대 속도·통과 대수) | [scripts/analyze_cctv.py](scripts/analyze_cctv.py) |
+| 소개 영상 「도로는 이미 알고 있다」 | [docs/media/video/lanefit-short-B.mp4](docs/media/video/lanefit-short-B.mp4) |
 | 변경 이력 | [CHANGELOG.md](CHANGELOG.md) |
 
 <p align="center"><sub>LaneFit · Kotlin · Jetpack Compose · Pleos Vehicle SDK · Pleos TextToSpeech SDK · Pleos NaviHelper SDK · Pleos FusedLocation SDK · Pleos SpeechToText SDK</sub></p>

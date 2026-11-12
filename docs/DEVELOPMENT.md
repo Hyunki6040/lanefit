@@ -223,8 +223,20 @@ python3 -I scripts/lane_profile.py build
 
 방법과 결과는 [데이터 분석과 백테스트](research/backtest.md)에 있습니다.
 
+## 도로 CCTV 흐름 분석 도구
+
+```sh
+uv run -q --with opencv-python-headless --with numpy python -I scripts/analyze_cctv.py --selftest
+```
+
+- `scripts/analyze_cctv.py`는 고정 CCTV 영상에서 컴퓨터 비전(Farneback 광학 흐름)으로 차로별 상대 속도와 통과 대수를 읽습니다.
+- `--selftest`는 정답을 아는 합성 3차로 영상으로 속도 오차와 통과 대수를 확인하고 "자체 검증 통과"를 출력합니다.
+- 차로 영역은 카메라마다 스크립트의 `CAMERAS`에 지정합니다. 영상 원본은 저장소에 포함하지 않습니다.
+- 앱은 이 도구에 의존하지 않습니다. 앱의 음성 인식과 음성 합성은 Pleos SDK의 온디바이스 모드로 동작합니다.
+
 ## APK
 
+- 배포: [GitHub Release v0.2.0](https://github.com/Hyunki6040/lanefit/releases/tag/v0.2.0)
 - 서명된 release APK: [apk/양주쀼_LaneFit_release.apk](../apk/양주쀼_LaneFit_release.apk)
 - 버전: `0.2.0` (versionCode 2), application ID: `app.lanefit`
 - SHA-256: `962d93df67bbe14e9b525883cb9f9dcfeaa03eeecc0748e146b23426796ffdf1`

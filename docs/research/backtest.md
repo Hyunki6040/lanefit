@@ -137,9 +137,13 @@ LaneFit의 차로 속도 프로필은 한국도로공사 공개 자료로 만듭
 - 요약은 [avc-lane-gap.json](avc-lane-gap.json), 그림은 `docs/media/lane-gap.png`에 있습니다.
 - 이 절은 한 지점의 하루 예시입니다. 앱의 프로필과 3절의 수치는 4개 지점 15일치로 계산한 값입니다.
 
-## 6. 도로 카메라 흐름 분석 도구
+## 6. 도로 CCTV 흐름 분석 도구
 
-`scripts/analyze_cctv.py`는 고정 카메라 영상에서 차로별 흐름을 읽는 분석 도구입니다.
+`scripts/analyze_cctv.py`는 고정 CCTV 영상에서 컴퓨터 비전으로 차로별 흐름을 읽는 분석 도구입니다. 차로별 통행속도 자료가 15분 평균이라면, 이 도구는 영상에서 차로끼리의 상대 흐름을 프레임 단위로 읽습니다.
+
+<p align="center"><img src="../media/cctv-ai.gif" alt="도로 CCTV 화면 위에 차로 영역과 움직임 상자, 차로별 상대 흐름 막대가 겹쳐지는 장면" width="38%"></p>
+
+위 화면은 AI로 만든 연출 영상입니다. 겹쳐 그린 차로 영역과 상자, 막대는 이 도구가 이 컷에서 계산한 값이며 실제 도로의 측정값이 아닙니다.
 
 - 차로마다 사다리꼴 영역을 정하고 연속한 프레임의 광학 흐름(Farneback)에서 움직이는 화소를 골라 차로별 중앙 속도를 구합니다.
 - 통과 대수는 차로 가운데 검지선의 점유가 꺼졌다 켜지는 횟수로 셉니다.
@@ -149,6 +153,7 @@ LaneFit의 차로 속도 프로필은 한국도로공사 공개 자료로 만듭
 - 야간 영상에서는 전조등 빛 번짐이 옆 차로 영역의 움직임으로 잡혀 통과 대수가 실제보다 많게 나옵니다.
 - 영상을 분석하면 요약을 `docs/research/cctv-lane-flow.json`에, 그림을 `docs/media/cctv-lane-flow.png`에 씁니다.
 - 영상 원본은 저장소에 포함하지 않습니다.
+- 앱의 판단은 차량 신호와 차로 속도 프로필로 내립니다. 음성 인식과 음성 합성은 Pleos SDK의 온디바이스 모드로 동작합니다.
 
 ## 7. 재현
 
@@ -170,7 +175,7 @@ cp data/raw/ex-avc-lane-15min/avc_20261110_0010AVI3962.json \
 uv run -q --with matplotlib python -I scripts/analyze_avc.py
 ```
 
-도로 카메라 흐름 분석 도구입니다. 첫 명령은 자체 검증이고 둘째 명령은 `data/raw/its-cctv/jukjeon/clip.mp4`에 둔 영상을 분석합니다.
+도로 CCTV 흐름 분석 도구입니다. 첫 명령은 자체 검증이고 둘째 명령은 `data/raw/its-cctv/jukjeon/clip.mp4`에 둔 영상을 분석합니다.
 
 ```sh
 uv run -q --with opencv-python-headless --with numpy python -I scripts/analyze_cctv.py --selftest
