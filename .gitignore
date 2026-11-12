@@ -26,3 +26,4 @@ refs/
 .kotlin/
 # third-party licence text, kept locally for review only
 docs/research/pleos-emulator-license.txt
+_workspace/
