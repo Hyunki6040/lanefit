@@ -1,0 +1,26 @@
+{
+  "source": "한국도로공사 고속도로 공공데이터 포털 AVC 원시자료 OpenAPI",
+  "site": "0010AVI3962",
+  "section": "신갈JC-서울TG",
+  "route": "경부선",
+  "date": "20261110",
+  "horizon_km": 10.0,
+  "min_cars_per_15min": 20,
+  "bus_lane_excluded": 1,
+  "slots": 96,
+  "adjacent_moves": 492,
+  "median_gain_s": 0.5,
+  "share_no_gain": 0.5,
+  "share_under_60s": 0.815,
+  "share_over_threshold": {
+    "Rush": 0.185,
+    "Flow": 0.1,
+    "Calm": 0.077
+  },
+  "best_move": {
+    "hhmm": "0845",
+    "from": 3,
+    "to": 2,
+    "gain_s": 575.7
+  }
+}

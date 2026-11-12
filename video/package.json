@@ -5,6 +5,8 @@
   "description": "LaneFit contest spot, built in code with Remotion",
   "scripts": {
     "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "render": "for id in A B C; do remotion render src/index.ts LaneFit$id out/$id.mp4; done",
     "prep": "bash scripts/prep_footage.sh",
     "audio": "uv run -q --with numpy --with scipy python -I scripts/make_audio.py"
   },
