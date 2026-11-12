@@ -1,0 +1,203 @@
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "bit_depth": 16,
+  "licence": "All audio synthesised by video/scripts/make_audio.py; no third-party samples.",
+  "loudness_note": "lufs = BS.1770 max momentary (400 ms) for SFX and end_hit, integrated for the bed. Clicks (tick, tock, ui_tap, count) start 3 ms into the file.",
+  "blinker": {
+    "flashes_per_minute": 88,
+    "tick_on": "beat",
+    "tock_on": "half-beat",
+    "half_beat_s": 0.340909
+  },
+  "files": [
+    {
+      "name": "whoosh_short",
+      "file": "sfx/whoosh_short.wav",
+      "duration_s": 0.35,
+      "peak_dbfs": -8.45,
+      "true_peak_dbtp": -8.34,
+      "lufs": -20.0,
+      "description": "Airy pass-by for quick cuts, card swipes, text wipes. Peak at ~0.19 s: put that on the cut."
+    },
+    {
+      "name": "whoosh_long",
+      "file": "sfx/whoosh_long.wav",
+      "duration_s": 0.9,
+      "peak_dbfs": -8.38,
+      "true_peak_dbtp": -8.37,
+      "lufs": -18.0,
+      "description": "Deeper, slower whoosh for big camera moves and scene transitions. Peak at ~0.54 s."
+    },
+    {
+      "name": "tick",
+      "file": "sfx/tick.wav",
+      "duration_s": 0.09,
+      "peak_dbfs": -1.97,
+      "true_peak_dbtp": -1.8,
+      "lufs": -25.0,
+      "description": "Brand sound: turn-signal relay 'tick' (contact closes). Dry, centre. Place ON the beat; pair with tock half a beat later."
+    },
+    {
+      "name": "tock",
+      "file": "sfx/tock.wav",
+      "duration_s": 0.09,
+      "peak_dbfs": -5.35,
+      "true_peak_dbtp": -5.34,
+      "lufs": -25.0,
+      "description": "Brand sound: turn-signal relay 'tock' (contact opens), lower and duller. Place on the off-beat, 0.341 s after tick."
+    },
+    {
+      "name": "pop",
+      "file": "sfx/pop.wav",
+      "duration_s": 0.2,
+      "peak_dbfs": -8.45,
+      "true_peak_dbtp": -8.45,
+      "lufs": -22.0,
+      "description": "Soft cork-like pop for a card or chip appearing."
+    },
+    {
+      "name": "chime_stay",
+      "file": "sfx/chime_stay.wav",
+      "duration_s": 0.9,
+      "peak_dbfs": -10.46,
+      "true_peak_dbtp": -10.46,
+      "lufs": -18.0,
+      "description": "The 'Stay' answer: calm warm two-note chime, A5 falling a fifth to the tonic D5 (second note at 0.24 s)."
+    },
+    {
+      "name": "chime_info",
+      "file": "sfx/chime_info.wav",
+      "duration_s": 0.6,
+      "peak_dbfs": -9.53,
+      "true_peak_dbtp": -9.53,
+      "lufs": -18.0,
+      "description": "Speed / info callout: brighter single A5 with a quick rising E5 grace note (main note at 0.07 s)."
+    },
+    {
+      "name": "chime_done",
+      "file": "sfx/chime_done.wav",
+      "duration_s": 1.4,
+      "peak_dbfs": -10.36,
+      "true_peak_dbtp": -10.36,
+      "lufs": -18.0,
+      "description": "Trip report / completion: three-note resolved phrase A4-D5-F#5 landing on a D chord (notes at 0, 0.19, 0.38 s)."
+    },
+    {
+      "name": "impact_soft",
+      "file": "sfx/impact_soft.wav",
+      "duration_s": 0.5,
+      "peak_dbfs": -7.73,
+      "true_peak_dbtp": -7.72,
+      "lufs": -18.0,
+      "description": "Soft low thud for a title or card landing. Mono."
+    },
+    {
+      "name": "sub_hit",
+      "file": "sfx/sub_hit.wav",
+      "duration_s": 1.2,
+      "peak_dbfs": -10.5,
+      "true_peak_dbtp": -10.49,
+      "lufs": -18.0,
+      "description": "Deep sub hit with a short tail for a section change or logo reveal. Mono; mostly felt on full-range speakers."
+    },
+    {
+      "name": "riser",
+      "file": "sfx/riser.wav",
+      "duration_s": 1.5,
+      "peak_dbfs": -8.86,
+      "true_peak_dbtp": -8.81,
+      "lufs": -18.0,
+      "description": "Filtered-noise + tone riser (D3 to D5), builds to its end at 1.5 s: end it on the cut or on a hit."
+    },
+    {
+      "name": "swell_rev",
+      "file": "sfx/swell_rev.wav",
+      "duration_s": 1.5,
+      "peak_dbfs": -9.13,
+      "true_peak_dbtp": -9.13,
+      "lufs": -18.0,
+      "description": "Reversed D-major swell that ends abruptly at 1.5 s: end it exactly on a cut, then silence or a hit."
+    },
+    {
+      "name": "ui_tap",
+      "file": "sfx/ui_tap.wav",
+      "duration_s": 0.06,
+      "peak_dbfs": -9.43,
+      "true_peak_dbtp": -9.42,
+      "lufs": -31.0,
+      "description": "Tiny fingertip tap for a button press or toggle."
+    },
+    {
+      "name": "slide",
+      "file": "sfx/slide.wav",
+      "duration_s": 0.4,
+      "peak_dbfs": -11.14,
+      "true_peak_dbtp": -11.13,
+      "lufs": -22.0,
+      "description": "Smooth narrow-band slide for the car or marker moving one lane. No pan baked in: pan it in the mix to match direction."
+    },
+    {
+      "name": "count",
+      "file": "sfx/count.wav",
+      "duration_s": 0.03,
+      "peak_dbfs": -10.27,
+      "true_peak_dbtp": -10.14,
+      "lufs": -33.0,
+      "description": "Very short tick for number count-ups; repeat at most ~20 per second."
+    },
+    {
+      "name": "bed",
+      "file": "music/bed.wav",
+      "duration_s": 95.4545,
+      "peak_dbfs": -7.87,
+      "true_peak_dbtp": -7.86,
+      "lufs": -22.0,
+      "description": "Music bed under the voice-over: marimba, felt keys, sub bass, light shaker. Starts on beat 1 at t=0; ends on a ringing D chord faded to silence, so it loops on the bar grid or fades anywhere.",
+      "bpm": 88,
+      "seconds_per_beat": 0.681818,
+      "seconds_per_bar": 2.727273,
+      "bars": 35,
+      "key": "D major",
+      "time_signature": "4/4",
+      "lift_bar": 17,
+      "lift_time_s": 43.6364,
+      "sections": [
+        {
+          "name": "intro (sparse)",
+          "bars": "1-4",
+          "start_s": 0
+        },
+        {
+          "name": "groove",
+          "bars": "5-16",
+          "start_s": 10.9091
+        },
+        {
+          "name": "lift",
+          "bars": "17-32",
+          "start_s": 43.6364
+        },
+        {
+          "name": "wind-down",
+          "bars": "33-34",
+          "start_s": 87.2727
+        },
+        {
+          "name": "final D chord",
+          "bars": "35",
+          "start_s": 92.7273
+        }
+      ]
+    },
+    {
+      "name": "end_hit",
+      "file": "music/end_hit.wav",
+      "duration_s": 4.0,
+      "peak_dbfs": -6.21,
+      "true_peak_dbtp": -6.2,
+      "lufs": -16.0,
+      "description": "End card: full D major chord with a low hit, rings about 4 s. Put its start on the final downbeat and fade the bed under it."
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "lanefit-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LaneFit contest spot, built in code with Remotion",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "prep": "bash scripts/prep_footage.sh",
+    "audio": "uv run -q --with numpy --with scipy python -I scripts/make_audio.py"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.543",
+    "@remotion/fonts": "4.0.543",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.543"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "typescript": "7.0.2"
+  }
+}

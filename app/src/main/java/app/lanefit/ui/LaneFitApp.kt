@@ -1,5 +1,23 @@
 package app.lanefit.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -16,8 +34,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -34,11 +54,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
@@ -59,10 +84,19 @@ import app.lanefit.engine.Side
 import app.lanefit.engine.spoken
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 // Pleos component sizes (dp). Landscape app windows are 1256-1700 wide, portrait ones 628-840.
 private val WIDE_MIN = 1000.dp
 private val GAP = 24.dp
+private val LANE_GAP = 8.dp
+
+// Motion is one-shot and short: it tells the driver that the answer changed, then stops. The only loop is the
+// outline of the lane that was asked about, which pulses while the turn signal itself is blinking.
+// Compose scales these by the system animator duration setting, so "remove animations" turns them off.
+private const val FAST_MS = 120
+private const val BASE_MS = 280
+private const val COUNT_MS = 600
 private val CardShape = RoundedCornerShape(48.dp)
 private val TileShape = RoundedCornerShape(24.dp)
 private val PillShape = RoundedCornerShape(50)
@@ -87,10 +121,16 @@ fun LaneFitApp(
         BoxWithConstraints(Modifier.fillMaxSize().background(c.backgroundPrimary)) {
             val wide = maxWidth >= WIDE_MIN
             val pad = if (wide) 48.dp else 32.dp
-            if (ui.parked) {
-                Parked(ui, source, signals, wide, pad, onPinMode, onCalmOnPassenger, onSource)
-            } else {
-                Driving(ui, source, wide, pad)
+            AnimatedContent(
+                ui.parked, Modifier.fillMaxSize(),
+                transitionSpec = { fadeIn(tween(BASE_MS, delayMillis = FAST_MS)) togetherWith fadeOut(tween(FAST_MS)) },
+                label = "screen",
+            ) { parked ->
+                if (parked) {
+                    Parked(ui, source, signals, wide, pad, onPinMode, onCalmOnPassenger, onSource)
+                } else {
+                    Driving(ui, source, wide, pad)
+                }
             }
         }
     }
@@ -100,9 +140,15 @@ fun LaneFitApp(
 
 @Composable
 private fun Driving(ui: UiState, source: Source, wide: Boolean, pad: Dp) {
-    val card = ui.card
+    // Keyed on "is there a risk result", so the outgoing panel keeps the result it was showing while it fades.
     val side: @Composable (Modifier) -> Unit = { m ->
-        if (card is Card.Risk) RiskPanel(card.result, m) else LanePanel(ui, m)
+        AnimatedContent(
+            (ui.card as? Card.Risk)?.result, m,
+            transitionSpec = { fadeIn(tween(BASE_MS, delayMillis = FAST_MS)) togetherWith fadeOut(tween(FAST_MS)) },
+            label = "side", contentKey = { it != null },
+        ) { risk ->
+            if (risk != null) RiskPanel(risk, Modifier.fillMaxSize()) else LanePanel(ui, Modifier.fillMaxSize())
+        }
     }
     if (wide) {
         Row(Modifier.fillMaxSize().padding(pad), spacedBy(GAP)) {
@@ -137,7 +183,13 @@ private fun Status(ui: UiState) {
     }
     Row(horizontalArrangement = spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         T("모드", PleosType.BodyM, c.textSecondary)
-        T(ui.mode.label, PleosType.BodyM.copy(fontWeight = PleosType.Bold))
+        AnimatedContent(
+            ui.mode.label,
+            transitionSpec = {
+                (fadeIn(tween(BASE_MS)) + slideInVertically(tween(BASE_MS)) { it / 2 }) togetherWith fadeOut(tween(FAST_MS))
+            },
+            label = "mode",
+        ) { T(it, PleosType.BodyM.copy(fontWeight = PleosType.Bold)) }
         Spacer(Modifier.size(20.dp))
         T("차선 확신도", PleosType.BodyM, c.textSecondary)
         T(level, PleosType.BodyM.copy(fontWeight = PleosType.Bold))
@@ -148,32 +200,47 @@ private fun Status(ui: UiState) {
 private fun MessageCard(ui: UiState, modifier: Modifier) {
     val c = LocalPleos.current
     val lane = ui.estimate.lane.takeIf { ui.estimate.confidence >= MIN_CONFIDENCE }
-    val card = ui.card
-    PCard(modifier, if (card is Card.Stay) c.surfaceHigh else c.surfaceBasic, pad = 48.dp) {
-        when (card) {
-            Card.Idle ->
-                if (lane != null) {
-                    Message(null, "내 차선", "${lane}차선", "깜빡이를 켜면 알려드려요")
-                } else {
-                    Message({ Pill("추천 쉬는 중") }, null, "차선을 다시 확인하고 있어요", "확인되면 다시 알려드려요")
+    val background by animateColorAsState(
+        if (ui.card is Card.Stay) c.surfaceHigh else c.surfaceBasic, tween(BASE_MS), label = "cardBackground",
+    )
+    PCard(modifier, background, pad = 48.dp) {
+        // A new answer rises into place; the old one is gone before it lands, so two sentences never overlap.
+        AnimatedContent(
+            ui.card to lane, Modifier.fillMaxSize(),
+            transitionSpec = {
+                (fadeIn(tween(BASE_MS, delayMillis = FAST_MS)) + slideInVertically(tween(BASE_MS + FAST_MS)) { it / 10 }) togetherWith
+                    fadeOut(tween(FAST_MS))
+            },
+            label = "message",
+        ) { (card, myLane) ->
+            Column(Modifier.fillMaxSize()) {
+                when (card) {
+                    Card.Idle ->
+                        if (myLane != null) {
+                            Message(null, "내 차선", "${myLane}차선", "깜빡이를 켜면 알려드려요")
+                        } else {
+                            Message({ Pill("추천 쉬는 중") }, null, "차선을 다시 확인하고 있어요", "확인되면 다시 알려드려요")
+                        }
+                    is Card.Stay -> {
+                        // "옮겨도 40초 차이예요, 유지하세요": the verdict is the last clause and gets the largest type.
+                        val parts = card.text.split(", ", limit = 2)
+                        Message(
+                            { Pill("유지", Icons.Filled.KeyboardArrowUp, filled = true) },
+                            parts.takeIf { it.size == 2 }?.let { it[0] + "," }, parts.last(), null, PleosType.HeadlineL,
+                        )
+                    }
+                    is Card.Change ->
+                        // Speed information only. Whether the gap is safe stays the driver's call.
+                        Message({ Pill("속도 정보", Icons.Filled.Info) }, null, card.text, "옆 차 간격은 직접 확인하세요")
+                    is Card.Risk -> Message(
+                        { Pill(if (card.result.needsCoaching) "다음 변경 때" else "방금 변경") }, null, card.result.coaching, null,
+                    )
+                    Card.PassengerCalm -> Message(
+                        { Pill("동승자 탑승", Icons.Filled.Person) }, null, "Calm 모드로 바꿨어요",
+                        "${Mode.CALM.thresholdS / 60}분 이상 빨라질 때만 알려드려요",
+                    )
                 }
-            is Card.Stay -> {
-                // "옮겨도 40초 차이예요, 유지하세요": the verdict is the last clause and gets the largest type.
-                val parts = card.text.split(", ", limit = 2)
-                Message(
-                    { Pill("유지", Icons.Filled.KeyboardArrowUp, filled = true) },
-                    parts.takeIf { it.size == 2 }?.let { it[0] + "," }, parts.last(), null, PleosType.HeadlineL,
-                )
             }
-            is Card.Change ->
-                // Speed information only. Whether the gap is safe stays the driver's call.
-                Message({ Pill("속도 정보", Icons.Filled.Info) }, null, card.text, "옆 차 간격은 직접 확인하세요")
-            is Card.Risk ->
-                Message({ Pill(if (card.result.needsCoaching) "다음 변경 때" else "방금 변경") }, null, card.result.coaching, null)
-            Card.PassengerCalm -> Message(
-                { Pill("동승자 탑승", Icons.Filled.Person) }, null, "Calm 모드로 바꿨어요",
-                "${Mode.CALM.thresholdS / 60}분 이상 빨라질 때만 알려드려요",
-            )
         }
     }
 }
@@ -215,37 +282,58 @@ private fun LanePanel(ui: UiState, modifier: Modifier) {
         if (mine == null) {
             Box(Modifier.fillMaxSize(), Alignment.Center) { T("차선 확인 중", PleosType.TitleS, c.textSecondary) }
         } else {
-            Row(Modifier.fillMaxSize(), spacedBy(8.dp)) {
-                for (n in 1..est.laneCount) {
-                    val isMine = n == mine
-                    Column(
-                        Modifier.weight(1f).fillMaxHeight().clip(TileShape)
-                            .background(if (isMine) c.surfaceAccent else c.surfaceLow)
-                            .then(if (n == asked) Modifier.border(3.dp, c.textTertiary, TileShape) else Modifier)
-                            .padding(vertical = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        T(
-                            "$n",
-                            PleosType.TitleM.copy(fontWeight = if (isMine) PleosType.ExtraBold else FontWeight.W400),
-                            if (isMine) c.textPrimary else c.textSecondary,
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val laneWidth = (maxWidth - LANE_GAP * (est.laneCount - 1)) / est.laneCount
+                val carTarget = (laneWidth + LANE_GAP) * (mine - 1) + laneWidth * 0.25f
+                val carX by animateDpAsState(carTarget, spring(0.75f, Spring.StiffnessLow), label = "carX")
+                val askedAlpha = if (asked == null) 1f else rememberInfiniteTransition(label = "asked").animateFloat(
+                    1f, 0.35f, infiniteRepeatable(tween(600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+                    label = "askedAlpha",
+                ).value
+                Row(Modifier.fillMaxSize(), spacedBy(LANE_GAP)) {
+                    for (n in 1..est.laneCount) {
+                        val isMine = n == mine
+                        val laneColor by animateColorAsState(
+                            if (isMine) c.surfaceAccent else c.surfaceLow, tween(BASE_MS), label = "lane",
                         )
-                        Spacer(Modifier.weight(1f))
-                        if (n == asked && card is Card.Change) {
+                        val outline = c.textTertiary.copy(alpha = c.textTertiary.alpha * askedAlpha)
+                        Column(
+                            Modifier.weight(1f).fillMaxHeight().clip(TileShape).background(laneColor)
+                                .then(if (n == asked) Modifier.border(3.dp, outline, TileShape) else Modifier)
+                                .padding(vertical = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
                             T(
-                                "${spoken(card.gainS)}\n빠름", PleosType.BodyS.copy(fontWeight = PleosType.Bold),
-                                align = TextAlign.Center,
+                                "$n",
+                                PleosType.TitleM.copy(fontWeight = if (isMine) PleosType.ExtraBold else FontWeight.W400),
+                                if (isMine) c.textPrimary else c.textSecondary,
                             )
-                        }
-                        if (isMine) {
-                            Box(Modifier.fillMaxWidth(0.5f).aspectRatio(0.53f).background(c.textPrimary, RoundedCornerShape(16.dp))) {
-                                Box(
-                                    Modifier.fillMaxWidth(0.7f).fillMaxHeight(0.2f).align(BiasAlignment(0f, -0.5f))
-                                        .background(c.surfaceAccent, RoundedCornerShape(6.dp)),
-                                )
+                            Spacer(Modifier.weight(1f))
+                            AnimatedVisibility(
+                                n == asked && card is Card.Change,
+                                enter = fadeIn(tween(BASE_MS)) + scaleIn(tween(BASE_MS), 0.8f), exit = fadeOut(tween(FAST_MS)),
+                            ) {
+                                if (card is Card.Change) {
+                                    T(
+                                        "${spoken(card.gainS)}\n빠름", PleosType.BodyS.copy(fontWeight = PleosType.Bold),
+                                        align = TextAlign.Center,
+                                    )
+                                }
                             }
                         }
                     }
+                }
+                // One car, drawn over the lanes: it slides to the new lane and leans into the move instead of jumping.
+                Box(
+                    Modifier.align(Alignment.BottomStart).offset(x = carX).padding(bottom = 16.dp)
+                        .width(laneWidth * 0.5f).aspectRatio(0.53f)
+                        .graphicsLayer { rotationZ = ((carTarget - carX) / laneWidth).coerceIn(-1f, 1f) * 14f }
+                        .background(c.textPrimary, RoundedCornerShape(16.dp)),
+                ) {
+                    Box(
+                        Modifier.fillMaxWidth(0.7f).fillMaxHeight(0.2f).align(BiasAlignment(0f, -0.5f))
+                            .background(c.surfaceAccent, RoundedCornerShape(6.dp)),
+                    )
                 }
             }
         }
@@ -261,21 +349,33 @@ private fun RiskPanel(r: RiskResult, modifier: Modifier) {
         RiskLevel.MID -> Icons.Filled.Info to c.textPrimary
         RiskLevel.HIGH -> Icons.Filled.Warning to c.informativeNegative
     }
+    // The score counts up once and the level segment fills with it, then everything is still.
+    val reveal = remember { Animatable(0f) }
+    LaunchedEffect(r) {
+        reveal.snapTo(0f)
+        reveal.animateTo(1f, tween(COUNT_MS, easing = FastOutSlowInEasing))
+    }
     PCard(modifier, pad = 40.dp) {
         Spacer(Modifier.weight(1f))
         T("방금 변경의 위험 지수", PleosType.BodyM, c.textSecondary)
-        T("${r.score}", PleosType.HeadlineL)
+        T("${(r.score * reveal.value).roundToInt()}", PleosType.HeadlineL)
         Row(horizontalArrangement = spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, Modifier.size(48.dp), tint = color)
+            Icon(
+                icon, null,
+                Modifier.size(48.dp).graphicsLayer {
+                    alpha = reveal.value
+                    scaleX = 0.6f + 0.4f * reveal.value
+                    scaleY = scaleX
+                },
+                tint = color,
+            )
             T(r.level.ko, PleosType.TitleM)
         }
         Spacer(Modifier.height(GAP))
         Row(horizontalArrangement = spacedBy(8.dp)) {
             for (l in RiskLevel.entries) {
-                Box(
-                    Modifier.weight(1f).height(16.dp)
-                        .background(if (l == r.level) color else c.surfaceAccent, RoundedCornerShape(8.dp)),
-                )
+                val fill = if (l == r.level) lerp(c.surfaceAccent, color, reveal.value) else c.surfaceAccent
+                Box(Modifier.weight(1f).height(16.dp).background(fill, RoundedCornerShape(8.dp)))
             }
         }
         Spacer(Modifier.height(GAP))
@@ -302,10 +402,10 @@ private fun Parked(
     onSource: (Source) -> Unit,
 ) {
     val cardPad = if (wide) 40.dp else 32.dp
-    val report = @Composable { ReportCard(ui.report, source, if (wide) 3 else 2, cardPad) }
-    val mode = @Composable { ModeCard(ui, cardPad, onPinMode, onCalmOnPassenger) }
-    val data = @Composable { SourceCard(source, cardPad, onSource) }
-    val check = @Composable { SignalCard(signals, cardPad) }
+    val report = @Composable { Enter(0) { ReportCard(ui.report, source, if (wide) 3 else 2, cardPad) } }
+    val mode = @Composable { Enter(1) { ModeCard(ui, cardPad, onPinMode, onCalmOnPassenger) } }
+    val data = @Composable { Enter(2) { SourceCard(source, cardPad, onSource) } }
+    val check = @Composable { Enter(3) { SignalCard(signals, cardPad) } }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(pad), spacedBy(GAP)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             T("레인핏", PleosType.TitleL)
@@ -412,6 +512,22 @@ private fun SignalCard(signals: List<Pair<String, String>>, pad: Dp) {
 
 // ---------------------------------------------------------------- Pleos components
 
+/** Parked cards arrive one after another, once, when the car stops. */
+@Composable
+private fun Enter(index: Int, content: @Composable () -> Unit) {
+    val p = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(index * 60L)
+        p.animateTo(1f, tween(BASE_MS + FAST_MS, easing = FastOutSlowInEasing))
+    }
+    Box(
+        Modifier.fillMaxWidth().graphicsLayer {
+            alpha = p.value
+            translationY = (1f - p.value) * 32.dp.toPx()
+        },
+    ) { content() }
+}
+
 @Composable
 private fun T(
     text: String,
@@ -454,19 +570,23 @@ private fun Pill(text: String, icon: ImageVector? = null, filled: Boolean = fals
 @Composable
 private fun <V> Segmented(options: List<Pair<V, String>>, selected: V, onSelect: (V) -> Unit) {
     val c = LocalPleos.current
-    Row(
-        Modifier.fillMaxWidth().height(100.dp).background(c.controllerTabBackground, PillShape).padding(8.dp)
-            .selectableGroup(),
+    val index = options.indexOfFirst { it.first == selected }.coerceAtLeast(0)
+    BoxWithConstraints(
+        Modifier.fillMaxWidth().height(100.dp).background(c.controllerTabBackground, PillShape).padding(8.dp),
     ) {
-        for ((value, label) in options) {
-            val on = value == selected
-            Box(
-                Modifier.weight(1f).fillMaxHeight().clip(PillShape)
-                    .background(if (on) c.buttonSwitchEnabled else Color.Transparent)
-                    .selectable(on, role = Role.Tab) { onSelect(value) },
-                Alignment.Center,
-            ) {
-                T(label, PleosType.BodyS.copy(fontWeight = if (on) PleosType.Bold else FontWeight.W400), maxLines = 1)
+        // One chip that slides to the chosen option, so the eye follows where the selection went.
+        val chipWidth = maxWidth / options.size
+        val chipX by animateDpAsState(chipWidth * index, spring(0.8f, Spring.StiffnessMediumLow), label = "chip")
+        Box(Modifier.offset(x = chipX).width(chipWidth).fillMaxHeight().background(c.buttonSwitchEnabled, PillShape))
+        Row(Modifier.fillMaxSize().selectableGroup()) {
+            for ((value, label) in options) {
+                val on = value == selected
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clip(PillShape).selectable(on, role = Role.Tab) { onSelect(value) },
+                    Alignment.Center,
+                ) {
+                    T(label, PleosType.BodyS.copy(fontWeight = if (on) PleosType.Bold else FontWeight.W400), maxLines = 1)
+                }
             }
         }
     }
@@ -476,20 +596,17 @@ private fun <V> Segmented(options: List<Pair<V, String>>, selected: V, onSelect:
 @Composable
 private fun SwitchRow(title: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     val c = LocalPleos.current
+    val track by animateColorAsState(if (checked) c.switchOn else c.switchOff, tween(BASE_MS), label = "track")
+    // Knob travel: track 80 - 2 x 8 inset - 32 knob.
+    val knobX by animateDpAsState(if (checked) 32.dp else 0.dp, spring(0.8f, Spring.StiffnessMedium), label = "knob")
     Row(
         Modifier.fillMaxWidth().heightIn(min = 80.dp).clip(TileShape)
             .toggleable(checked, role = Role.Switch, onValueChange = onChange),
         spacedBy(GAP), Alignment.CenterVertically,
     ) {
         T(title, PleosType.BodyM, modifier = Modifier.weight(1f))
-        Box(
-            Modifier.size(80.dp, 48.dp).background(if (checked) c.switchOn else c.switchOff, RoundedCornerShape(16.dp))
-                .padding(8.dp),
-        ) {
-            Box(
-                Modifier.size(32.dp).align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
-                    .background(Color.White, RoundedCornerShape(8.dp)),
-            )
+        Box(Modifier.size(80.dp, 48.dp).background(track, RoundedCornerShape(16.dp)).padding(8.dp)) {
+            Box(Modifier.offset(x = knobX).size(32.dp).background(Color.White, RoundedCornerShape(8.dp)))
         }
     }
 }

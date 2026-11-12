@@ -27,3 +27,8 @@ refs/
 # third-party licence text, kept locally for review only
 docs/research/pleos-emulator-license.txt
 _workspace/
+# video: dependencies, renders, and media that scripts regenerate or that Higgsfield produced
+video/node_modules/
+video/out/
+video/public/*
+!video/public/audio-manifest.json
