@@ -211,10 +211,12 @@ const EndScene: React.FC = () => {
     <AbsoluteFill style={{ background: 'radial-gradient(circle at 50% 40%, #16233b 0%, #05080f 75%)', justifyContent: 'center', alignItems: 'center', gap: 26 }}>
       {line('LaneFit · 레인핏', 6, { fontWeight: 800, fontSize: 112 })}
       {line('덜 바꿔도, 늦지 않습니다', 16, { fontWeight: 700, fontSize: 50, color: '#2fd3b5' })}
-      {line('Pleos Connect 앱 프로토타입', 28, { fontWeight: 500, fontSize: 42, marginTop: 60 })}
-      {line('HMG 차량용 앱 개발 공모전 출품작', 36, { fontWeight: 500, fontSize: 36, opacity: 0.8 })}
-      {line('#HMG차량용앱개발공모전', 44, { fontWeight: 500, fontSize: 30, opacity: 0.6 })}
-      {line('인물·도로 장면은 AI 생성 연출 · 앱 화면은 에뮬레이터 실제 녹화', 52, { fontWeight: 500, fontSize: 24, opacity: 0.55, marginTop: 80 })}
+      {line('현대자동차그룹의 차세대 인포테인먼트 시스템', 28, { fontWeight: 500, fontSize: 36, opacity: 0.85, marginTop: 60 })}
+      {line('Pleos Connect 차선 비서', 34, { fontWeight: 700, fontSize: 46 })}
+      {line('Pleos SDK로 차량과 연결됩니다', 40, { fontWeight: 500, fontSize: 36, opacity: 0.85 })}
+      {line('HMG 차량용 앱 개발 공모전 출품작', 50, { fontWeight: 500, fontSize: 36, opacity: 0.8, marginTop: 40 })}
+      {line('#HMG차량용앱개발공모전', 56, { fontWeight: 500, fontSize: 30, opacity: 0.6 })}
+      {line('인물·도로 장면은 AI 생성 연출 · 앱 화면은 에뮬레이터 실제 녹화', 62, { fontWeight: 500, fontSize: 24, opacity: 0.55, marginTop: 80 })}
     </AbsoluteFill>
   );
 };

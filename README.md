@@ -2,6 +2,7 @@
 
 <p align="center">
 <b>방향지시등을 켜는 순간, "옮길 만한지"를 한 문장으로 답하는 Pleos Connect 차선 비서</b><br>
+현대자동차그룹의 차세대 인포테인먼트 시스템 Pleos Connect에서 동작하고, Pleos SDK로 차량과 연결됩니다<br>
 LaneFit 0.2.0 · 기본 답은 Stay · 차량 제어 없음
 </p>
 
@@ -39,7 +40,7 @@ LaneFit 0.2.0 · 기본 답은 Stay · 차량 제어 없음
 ## 소개 영상
 
 <p align="center"><a href="docs/media/video/lanefit-short-B.mp4"><img src="docs/media/short-b.gif" alt="밤의 고속도로 위성 화면에서 정체 구간, 도로 CCTV 관제실, 차로별 속도 그래프, '81.5%는 1분을 못 아꼈다' 수치, 방향지시등을 켜는 손으로 이어지는 소개 영상" width="36%"></a></p>
-<p align="center"><sub>「도로는 이미 알고 있다」 46초입니다. 미리보기를 누르면 소리가 있는 MP4가 열립니다. 앱 화면은 Pleos Connect Emulator에서 실행한 실제 화면이고, 그래프와 수치는 한국도로공사 공개 자료입니다. 인물과 도로, CCTV 관제실 장면은 AI로 만든 연출 영상이며 화면마다 표기했습니다.</sub></p>
+<p align="center"><sub>「도로는 이미 알고 있다」 48초입니다. 미리보기를 누르면 소리가 있는 MP4가 열립니다. 앱 화면은 Pleos Connect Emulator에서 실행한 실제 화면이고, 그래프와 수치는 한국도로공사 공개 자료입니다. 인물과 도로, CCTV 관제실 장면은 AI로 만든 연출 영상이며 화면마다 표기했습니다.</sub></p>
 
 ## 필요한 이유
 
@@ -209,7 +210,9 @@ uv run -q --with opencv-python-headless --with numpy python -I scripts/analyze_c
 
 ## 차량과 연결되는 지점
 
-레인핏은 Pleos SDK 5종으로 차량과 연결됩니다. 모두 읽기 전용입니다.
+Pleos는 현대자동차그룹의 통합 모빌리티 소프트웨어 브랜드이자 기술 플랫폼입니다. Pleos Connect는 Android Automotive OS를 기반으로 한 차세대 인포테인먼트 시스템이고, 앱 개발사는 개발사 전용 플랫폼 Pleos Playground에서 차량 API와 SDK를 제공받습니다([현대자동차그룹 소개 글](https://www.hyundaimotorgroup.com/ko/story/CONT0000000000210298)).
+
+레인핏은 이 Pleos SDK 5종으로 차량과 연결됩니다. 모두 읽기 전용입니다.
 
 | Pleos SDK | 권한 | 레인핏에서의 쓰임 |
 | --- | --- | --- |

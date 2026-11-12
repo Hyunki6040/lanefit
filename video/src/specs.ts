@@ -4,7 +4,7 @@ export type Grade = 'app' | 'data' | 'plan' | 'staged' | 'example';
 export const GRADES: Record<Grade, string> = {
   app: 'Pleos Connect 에뮬레이터 실행 화면',
   data: '한국도로공사 공개 데이터 · 2026-11-10 · 경부선 1지점',
-  plan: '서비스 구상 · 개발 예정 · 연출 영상 (AI 생성)',
+  plan: '도로 CCTV 영상 AI 분석 · 연출 영상 (AI 생성)',
   staged: '연출 장면 (AI 생성)',
   example: '연출 장면 (AI 생성) · 앱은 예시 도로 값으로 동작',
 };
@@ -66,8 +66,12 @@ export const A: Spec = {
 };
 
 export const B: Spec = {
-  seconds: 46,
-  voice: [{ src: 'voice/b.mp3', at: 0, from: 0, to: 42.1 }],
+  seconds: 48,
+  // b.mp3는 "부드러웠는지까지"(27.78초)까지만 쓰고, 뒤 세 문장은 같은 목소리로 다시 녹음한 b2.mp3를 잇는다.
+  voice: [
+    { src: 'voice/b.mp3', at: 0, from: 0, to: 28.0 },
+    { src: 'voice/b2.mp3', at: 28.4, from: 0, to: 18.96 },
+  ],
   scenes: [
     { from: 0, to: 1.6, kind: 'img', src: 'hf/s1.png', grade: 'staged', zoom: [1.0, 2.2], sfx: 'riser' },
     { from: 1.6, to: 4.0, kind: 'vid', src: 'hf/v_drone.mp4', grade: 'staged', zoom: [1.05, 1.15] },
@@ -78,9 +82,9 @@ export const B: Spec = {
     { from: 19.9, to: 23.4, kind: 'app', src: 'footage/sim.mp4', start: 9.8, grade: 'app', sfx: 'chime_stay' },
     { from: 23.4, to: 25.1, kind: 'app', src: 'footage/car.mp4', start: 10, grade: 'app', sfx: 'chime_info' },
     { from: 25.1, to: 28.2, kind: 'app', src: 'footage/car.mp4', start: 22.3, grade: 'app', sfx: 'count' },
-    { from: 28.2, to: 35.2, kind: 'vid', src: 'hf/v_cctv.mp4', rate: 0.55, grade: 'plan', overlay: 'cctv', sfx: 'whoosh_long' },
-    { from: 35.2, to: 38.9, kind: 'vid', src: 'hf/v_dad.mp4', grade: 'staged', ...DAD },
-    { from: 38.9, to: 46, kind: 'end' },
+    { from: 28.2, to: 33.1, kind: 'vid', src: 'hf/v_cctv.mp4', rate: 0.55, grade: 'plan', overlay: 'cctv', sfx: 'whoosh_long' },
+    { from: 33.1, to: 36.8, kind: 'vid', src: 'hf/v_dad.mp4', grade: 'staged', ...DAD },
+    { from: 36.8, to: 48, kind: 'end' },
   ],
   captions: [
     [0, 3.4, '지금 이 도로에서\n가장 빠른 차선은 어디일까요?'],
@@ -91,8 +95,8 @@ export const B: Spec = {
     [20.0, 23.1, STAY],
     [23.5, 25.0, '빠를 때는 빠르다고'],
     [25.1, 27.9, '바꾼 뒤에는\n얼마나 부드러웠는지까지'],
-    [28.3, 34.8, '다음 단계는 도로 카메라 영상을 AI가 읽어\n차로별 흐름을 실시간으로 채우는 일'],
-    [35.3, 38.5, '판단은 돕고,\n운전대는 사람이 잡습니다'],
+    [28.4, 32.9, '도로 CCTV 영상은 AI가 읽어\n차로별 흐름을 확인합니다'],
+    [33.3, 36.4, '판단은 돕고,\n운전대는 사람이 잡습니다'],
   ],
 };
 
@@ -121,7 +125,7 @@ export const C: Spec = {
     [0, 3.4, '지금 이 도로에서\n가장 빠른 차선은 어디일까요?'],
     [4.1, 6.2, '도로는 이미 알고 있습니다'],
     [6.5, 11.2, '옆 차로로 옮겨도 열 번 중 여덟 번은\n1분도 아끼지 못했습니다'],
-    [11.6, 14.7, '도로 카메라를 AI가 읽는 것이\n다음 단계'],
+    [11.6, 14.7, '도로 CCTV 영상은 AI가 읽어\n차로별 흐름을 확인합니다'],
     [15.0, 17.0, '내 차선과 옆 차선을 비교하고'],
     [17.2, 19.3, '깜빡이를 켜는 순간'],
     [19.6, 23.0, STAY],
