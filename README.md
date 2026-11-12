@@ -49,7 +49,7 @@ python3 scripts/drive_emulator.py
 
 - 제출용 서명 APK: [apk/양주쀼_LaneFit_release.apk](apk/양주쀼_LaneFit_release.apk)
 - 버전: `0.1.0`, application ID: `app.lanefit`
-- SHA-256: `749bb857cafefbd9caa8170272313ed9bdeb58b7f10251565a62825a021e0c20`
+- SHA-256: `4a0093b705fda3335460044039487fe14f84ff1a203abe6a466fbc105759d4f4`
 - 서명 인증서 SHA-256: `60a5f94dbd4df79d2b9299127cba7ef9bd3eb8dbc3562dd81faed2f77605a852`
 - 서명 키·비밀번호는 저장소에 포함하지 않습니다. `keystore.properties`가 없으면 로컬 release 빌드는 debug 키로 서명됩니다. 제출 APK와 동일한 서명이 아닙니다.
 - debug APK와 제출 APK는 서명이 달라 덮어 설치할 수 없습니다. 기존 앱 삭제 시 앱 데이터가 삭제되므로 필요한 자료를 먼저 보관하세요.

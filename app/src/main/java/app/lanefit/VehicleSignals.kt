@@ -193,8 +193,18 @@ class VehicleSignals(private val context: Context) {
     fun startCar() {
         if (car != null) return
         try {
-            val c = Car.createCar(context) ?: return
-            car = c
+            // Without a listener the platform finishes the activity whenever the car service restarts (seen on
+            // the emulator). With one, speed and gear are dropped until the service is back, then watched again.
+            car = Car.createCar(context, null, Car.CAR_WAIT_TIMEOUT_DO_NOT_WAIT) { c, ready ->
+                main.post { if (ready) onCarReady(c) else onCarLost() }
+            }
+        } catch (e: RuntimeException) {
+            failed(Signal.SPEED, e)
+        }
+    }
+
+    private fun onCarReady(c: Car) {
+        try {
             val p = (c.getCarManager(Car.PROPERTY_SERVICE) as? CarPropertyManager) ?: return
             props = p
             watch(p, VehiclePropertyIds.PERF_VEHICLE_SPEED, Signal.SPEED)
@@ -202,6 +212,15 @@ class VehicleSignals(private val context: Context) {
         } catch (e: RuntimeException) {
             failed(Signal.SPEED, e)
         }
+    }
+
+    // ponytail: only the AAOS side recovers. Whether the Pleos Vehicle listeners survive a car service restart is untested.
+    private fun onCarLost() {
+        props = null
+        speedKmh = null // sample() returns null: no stale speed, and no parked screen without a confirmed P
+        inPark = null
+        status.remove(Signal.SPEED)
+        status.remove(Signal.GEAR)
     }
 
     private fun watch(p: CarPropertyManager, id: Int, s: Signal) {

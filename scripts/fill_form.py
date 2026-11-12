@@ -243,7 +243,7 @@ def main():
     expected_ticks = sum(known(a[k]) for k in ("unit", "division")) + sum(decided)
     assert everything.count("■") == expected_ticks, "wrong number of ticked boxes"
     for m in team:
-        for key in ("name", "email", "phone"):
+        for key in ("name", "email", "phone", "affiliation"):
             assert not known(m.get(key)) or m[key] not in sec2, f"member {key} appears in section 02 (form forbids it)"
 
     missing_01 = [k for k in SECTION_01_KEYS if not known(a.get(k))]
